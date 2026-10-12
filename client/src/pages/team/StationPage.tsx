@@ -95,7 +95,7 @@ export function StationPage() {
         title={NEXT_STATUS_LABEL[challenge.status] ?? "Posta no disponible"}
       >
         {challenge.status === "NOT_YOUR_NEXT" && (
-          <Link to="/itinierario" className="btn-primary mt-1">
+          <Link to="/itinerario" className="btn-primary mt-1">
             <RouteIcon className="h-5 w-5" /> Ver mi itinerario
           </Link>
         )}

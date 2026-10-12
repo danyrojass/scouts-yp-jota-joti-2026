@@ -7,7 +7,7 @@ import { Logo } from "@/components/Logo";
 const navItems = [
   { to: "/pasaporte", label: "Pasaporte", icon: Compass },
   { to: "/escanear", label: "Escanear", icon: Camera },
-  { to: "/itinierario", label: "Ruta", icon: Map },
+  { to: "/itinerario", label: "Ruta", icon: Map },
   { to: "/safari", label: "Safari", icon: Binoculars },
 ];
 

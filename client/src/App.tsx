@@ -41,7 +41,7 @@ export default function App() {
 
       <Route element={<TeamShelter />}>
         <Route path="/pasaporte" element={<PassportPage />} />
-        <Route path="/itinierario" element={<ItineraryPage />} />
+        <Route path="/itinerario" element={<ItineraryPage />} />
         <Route path="/safari" element={<SafariPage />} />
         <Route
           path="/escanear"

@@ -83,7 +83,7 @@ export function PassportPage() {
           <Link to="/escanear" className="btn-orange w-full">
             <Camera className="h-5 w-5" /> Escanear
           </Link>
-          <Link to="/itinierario" className="btn-secondary w-full">
+          <Link to="/itinerario" className="btn-secondary w-full">
             <Route className="h-5 w-5" /> Mi ruta
           </Link>
         </div>
