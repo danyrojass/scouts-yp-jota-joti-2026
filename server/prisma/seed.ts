@@ -5,6 +5,16 @@ const prisma = new PrismaClient();
 
 const hash = (plain: string) => bcrypt.hash(plain, 12);
 
+/** Fisher-Yates shuffle (returns a new array). */
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 async function main() {
   const existing = await prisma.event.count();
   if (existing > 0) {
@@ -35,67 +45,45 @@ async function main() {
     create: { username: adminUsername, passwordHash: adminPasswordHash, role: "ADMIN" },
   });
 
-  // Approximate demo coordinates around the Ypacaraí lake shore. They are only
-  // illustrative placeholders; real coordinates are loaded by an admin.
-  const DEMO_COORDS = [
-    { latitude: -25.3903, longitude: -57.2859 },
-    { latitude: -25.3931, longitude: -57.2792 },
-    { latitude: -25.3995, longitude: -57.2871 },
-    { latitude: -25.4058, longitude: -57.2906 },
-    { latitude: -25.4112, longitude: -57.2834 },
+  // Recorrido real por la ciudad de Ypacaraí. Los 20 puntos se numeran para
+  // identificarlos sin ambigüedad (algunos son muy cercanos entre sí). Se cargan
+  // como CONFIRMATION (solo escanear para confirmar el paso).
+  const REAL_STATIONS = [
+    { name: "Posta 1", latitude: -25.42019689658079, longitude: -57.293242316652325 },
+    { name: "Posta 2", latitude: -25.417155759670393, longitude: -57.294598890604206 },
+    { name: "Posta 3", latitude: -25.41339252405913, longitude: -57.29226291189915 },
+    { name: "Posta 4", latitude: -25.411967483931193, longitude: -57.29137946095978 },
+    { name: "Posta 5", latitude: -25.410773144435932, longitude: -57.290027706503984 },
+    { name: "Posta 6", latitude: -25.409472377445898, longitude: -57.29035251636475 },
+    { name: "Posta 7", latitude: -25.409197713903186, longitude: -57.29041122457035 },
+    { name: "Posta 8", latitude: -25.40763829632697, longitude: -57.290223068510926 },
+    { name: "Posta 9", latitude: -25.4061769610061, longitude: -57.28825761326209 },
+    { name: "Posta 10", latitude: -25.405990335827017, longitude: -57.28644980991472 },
+    { name: "Posta 11", latitude: -25.404783930431293, longitude: -57.28695156756665 },
+    { name: "Posta 12", latitude: -25.404419562518143, longitude: -57.28661460286067 },
+    { name: "Posta 13", latitude: -25.403517525031322, longitude: -57.28700075950143 },
+    { name: "Posta 14", latitude: -25.403428653971307, longitude: -57.28739921411802 },
+    { name: "Posta 15", latitude: -25.40323758098864, longitude: -57.28736969896229 },
+    { name: "Posta 16", latitude: -25.40306428197522, longitude: -57.286973703956214 },
+    { name: "Posta 17", latitude: -25.402682134547938, longitude: -57.28689991605747 },
+    { name: "Posta 18", latitude: -25.402608815423196, longitude: -57.286530976603935 },
+    { name: "Posta 19", latitude: -25.403219806732892, longitude: -57.286407996788384 },
+    { name: "Posta 20", latitude: -25.402459955253534, longitude: -57.28689991605058 },
   ];
 
   const stations = await Promise.all(
-    [
-      {
-        name: "Mirador del Lago",
-        description: "Posta con vista panoramica al lago Ypacarai.",
-        instructions: "Busca la palabra clave pintada en el cartel de madera.",
-        challengeType: "CODE",
-        expectedAnswer: "TATACUA",
-        displayedCode: "Palabra clave: ingresa la palabra del cartel.",
-      },
-      {
-        name: "Sendero del Jaguarete",
-        description: "Posta en la entrada del sendero principal.",
-        instructions: "Responde: ¿Cuantas patas tiene el jaguarete en el logo?",
-        challengeType: "QUESTION",
-        expectedAnswer: "cuatro",
-      },
-      {
-        name: "Laguna Verde",
-        description: "Confirmacion de paso por la laguna.",
-        instructions: "Escanea y confirma tu paso por la Laguna Verde.",
-        challengeType: "CONFIRMATION",
-      },
-      {
-        name: "Monte de los Lobos",
-        description: "Posta junto a la fauna local.",
-        instructions: "Completa el refran: 'Lobo que...'",
-        challengeType: "QUESTION",
-        expectedAnswer: "aulla no muerde",
-      },
-      {
-        name: "Cueva del Zorro",
-        description: "Ultima posta antes de la meta.",
-        instructions: "Escribe la clave final oculta en la roca.",
-        challengeType: "CODE",
-        expectedAnswer: "GUARANI",
-        displayedCode: "Clave: la encuentras debajo de la roca grande.",
-      },
-    ].map((s, i) =>
+    REAL_STATIONS.map((s, i) =>
       prisma.station.create({
         data: {
           eventId: event.id,
           name: s.name,
-          description: s.description,
-          instructions: s.instructions,
-          challengeType: s.challengeType as never,
-          expectedAnswer: (s as { expectedAnswer?: string }).expectedAnswer ?? null,
-          displayedCode: (s as { displayedCode?: string }).displayedCode ?? null,
-          latitude: DEMO_COORDS[i]?.latitude ?? null,
-          longitude: DEMO_COORDS[i]?.longitude ?? null,
-          publicToken: `demo-station-${i + 1}-${Buffer.from(s.name)
+          instructions: "Escanea el QR de la posta y confirma tu paso.",
+          challengeType: "CONFIRMATION" as never,
+          expectedAnswer: null,
+          displayedCode: null,
+          latitude: s.latitude,
+          longitude: s.longitude,
+          publicToken: `posta-${i + 1}-${Buffer.from(s.name)
             .toString("base64url")
             .slice(0, 10)}`,
         },
@@ -104,7 +92,7 @@ async function main() {
   );
 
   // 10 equipos: usuario y nombre visible = "equipo1".."equipo10". Cada equipo
-  // recorre las MISMAS postas en un orden rotado, para que no compartan ruta.
+  // recorre las MISMAS postas en un orden aleatorio independiente.
   const TEAM_COUNT = 10;
   const TEAM_PASSWORD = process.env.TEAM_PASSWORD || "explora2026";
 
@@ -119,11 +107,11 @@ async function main() {
         active: true,
       },
     });
-    const order = stations.map((_, k) => (i + k) % stations.length);
+    const order = shuffle(stations);
     await prisma.routeStop.createMany({
-      data: order.map((idx, pos) => ({
+      data: order.map((s, pos) => ({
         teamId: team.id,
-        stationId: stations[idx].id,
+        stationId: s.id,
         position: pos + 1,
       })),
     });
