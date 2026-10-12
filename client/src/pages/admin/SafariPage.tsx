@@ -6,6 +6,8 @@ import {
   errorMessage,
   type AdminSafari,
   type AdminSafariItem,
+  type SafariCategory,
+  type SafariItemType,
   type SafariProgressReport,
 } from "@/api/types";
 import { useApi } from "@/hooks/useApi";
@@ -14,9 +16,41 @@ import { Alert } from "@/components/Alert";
 import { ProgressBar, Badge } from "@/components/ProgressBar";
 import { Modal, ConfirmDialog } from "@/components/Modal";
 
-type ItemFormValues = { name: string; description: string; active: boolean };
+const CATEGORY_OPTIONS: { value: SafariCategory; label: string }[] = [
+  { value: "LUGARES_CULTURA", label: "Lugares y cultura de Ypacaraí" },
+  { value: "NATURALEZA", label: "Naturaleza" },
+  { value: "OBJETOS_CURIOSIDADES", label: "Objetos y curiosidades" },
+  { value: "DESAFIOS_FOTOGRAFICOS", label: "Desafíos fotográficos" },
+  { value: "GENERAL", label: "General" },
+];
 
-const EMPTY_ITEM: ItemFormValues = { name: "", description: "", active: true };
+const TYPE_OPTIONS: { value: SafariItemType; label: string }[] = [
+  { value: "PHOTO", label: "Fotografía requerida" },
+  { value: "OBJECT", label: "Objeto que debe encontrarse" },
+  { value: "NUMERIC", label: "Observación con respuesta numérica" },
+  { value: "COLLECTION", label: "Recolección de elementos naturales" },
+];
+
+const categoryLabel = (c: SafariCategory) =>
+  CATEGORY_OPTIONS.find((o) => o.value === c)?.label ?? c;
+
+type ItemFormValues = {
+  name: string;
+  description: string;
+  active: boolean;
+  category: SafariCategory;
+  itemType: SafariItemType;
+  requiresPhoto: boolean;
+};
+
+const EMPTY_ITEM: ItemFormValues = {
+  name: "",
+  description: "",
+  active: true,
+  category: "GENERAL",
+  itemType: "PHOTO",
+  requiresPhoto: false,
+};
 
 function ItemFormModal({
   title,
@@ -53,6 +87,47 @@ function ItemFormModal({
             onChange={(e) => setValues({ ...values, description: e.target.value })}
           />
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label">Categoría</label>
+            <select
+              className="input"
+              value={values.category}
+              onChange={(e) =>
+                setValues({ ...values, category: e.target.value as SafariCategory })
+              }
+            >
+              {CATEGORY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Tipo de desafío</label>
+            <select
+              className="input"
+              value={values.itemType}
+              onChange={(e) => setValues({ ...values, itemType: e.target.value as SafariItemType })}
+            >
+              {TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 font-bold text-forest-800">
+          <input
+            type="checkbox"
+            checked={values.requiresPhoto}
+            onChange={(e) => setValues({ ...values, requiresPhoto: e.target.checked })}
+            className="h-4 w-4 accent-forest-700"
+          />
+          Requiere evidencia fotográfica
+        </label>
         <label className="flex items-center gap-2 font-bold text-forest-800">
           <input
             type="checkbox"
@@ -191,7 +266,9 @@ export function SafariAdminPage() {
     run(() =>
       api.post("/api/v1/admin/safari", {
         eventId,
-        title: "Safari de Exploración",
+        title: "Safari JOTA JOTI 2026 — Ypacaraí",
+        description:
+          "¡Exploradores, llegó el momento de descubrir Ypacaraí! Completen los desafíos del safari, observen su entorno, encuentren curiosidades y registren sus descubrimientos mediante fotografías y objetos recolectados. Trabajen en equipo, respeten el entorno y sigan las indicaciones de la organización.",
       })
     );
 
@@ -210,6 +287,9 @@ export function SafariAdminPage() {
       name: values.name,
       description: values.description || null,
       active: values.active,
+      category: values.category,
+      itemType: values.itemType,
+      requiresPhoto: values.requiresPhoto,
     };
     return run(() =>
       editing
@@ -254,7 +334,7 @@ export function SafariAdminPage() {
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-xl font-bold text-forest-900">Safari de Exploración</h2>
+            <h2 className="font-display text-xl font-bold text-forest-900">Safari JOTA JOTI 2026 — Ypacaraí</h2>
             <p className="text-sm font-semibold text-forest-600">
               Checklist colaborativo que los equipos completan durante el evento.
             </p>
@@ -278,7 +358,7 @@ export function SafariAdminPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-bold text-forest-900">Safari de Exploración</h2>
+          <h2 className="font-display text-xl font-bold text-forest-900">Safari JOTA JOTI 2026 — Ypacaraí</h2>
           <p className="text-sm font-semibold text-forest-600">
             Configurá la lista de elementos y seguí el progreso de cada equipo.
           </p>
@@ -319,6 +399,13 @@ export function SafariAdminPage() {
                   {item.description && (
                     <p className="truncate text-xs font-semibold text-forest-500">{item.description}</p>
                   )}
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <Badge tone="forest">{categoryLabel(item.category)}</Badge>
+                    <Badge tone="gray">
+                      {TYPE_OPTIONS.find((o) => o.value === item.itemType)?.label ?? item.itemType}
+                    </Badge>
+                    {item.requiresPhoto && <Badge tone="orange">Requiere foto</Badge>}
+                  </div>
                 </div>
                 {!item.active && <Badge tone="red">Inactivo</Badge>}
                 <button onClick={() => move(i, -1)} disabled={i === 0 || busy} className="rounded-lg p-1.5 text-forest-600 hover:bg-forest-100 disabled:opacity-30">
@@ -431,6 +518,9 @@ export function SafariAdminPage() {
                   name: itemModal.item.name,
                   description: itemModal.item.description ?? "",
                   active: itemModal.item.active,
+                  category: itemModal.item.category,
+                  itemType: itemModal.item.itemType,
+                  requiresPhoto: itemModal.item.requiresPhoto,
                 }
               : EMPTY_ITEM
           }

@@ -23,6 +23,7 @@
     "db:seed": "npm --workspace server run db:seed",
     "assign-questions": "npm --workspace server run assign-questions",
     "order-routes": "npm --workspace server run order-routes",
+    "seed-safari": "npm --workspace server run seed-safari",
     "create-admin": "npm --workspace server run create-admin"
   },
   "devDependencies": {

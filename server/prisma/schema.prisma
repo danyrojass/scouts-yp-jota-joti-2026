@@ -202,14 +202,17 @@ model Safari {
 }
 
 model SafariItem {
-  id          String   @id @default(cuid())
-  safariId    String
-  name        String
-  description String?
-  position    Int      @default(0)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  safariId      String
+  name          String
+  description   String?
+  position      Int      @default(0)
+  active        Boolean  @default(true)
+  category      String   @default("GENERAL")
+  itemType      String   @default("PHOTO")
+  requiresPhoto Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   safari Safari      @relation(fields: [safariId], references: [id], onDelete: Cascade)
   finds  SafariFind[]
@@ -220,12 +223,14 @@ model SafariItem {
 // A single "found" mark. The unique pair guarantees at most one find per item
 // and team, so concurrent marks cannot duplicate.
 model SafariFind {
-  id       String   @id @default(cuid())
-  safariId String
-  itemId   String
-  teamId   String
-  eventId  String
-  foundAt  DateTime @default(now())
+  id         String   @id @default(cuid())
+  safariId   String
+  itemId     String
+  teamId     String
+  eventId    String
+  value      String?
+  photoReady Boolean  @default(false)
+  foundAt    DateTime @default(now())
 
   safari Safari     @relation(fields: [safariId], references: [id], onDelete: Cascade)
   item   SafariItem @relation(fields: [itemId], references: [id], onDelete: Cascade)

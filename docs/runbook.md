@@ -24,7 +24,8 @@ Verificar: `curl http://localhost:4000/api/health`.
 | Asignar preguntas bonus (sin borrar) | `npm run assign-questions` → reparte 2 preguntas aleatorias por equipo (una de respuesta correcta, una libre) en postas distintas, **sin tocar el resto de los datos**. Idempotente |
 | Reordenar rutas (sin borrar) | `npm run order-routes` → reordena las postas de cada equipo según el orden geográfico de `server/prisma/route.ts` (evita ir y volver). No cambia el subconjunto ni las preguntas. Idempotente |
 | Cargar coordenadas de postas | Evento → **Postas** → *Importar CSV* (`nombre,qr_id,latitud,longitud,descripcion`) o editando cada posta |
-| Configurar el safari | Evento → **Safari** (crear, items, orden, activo) |
+| Cargar el checklist oficial del safari (sin borrar) | `npm run seed-safari` → crea el safari con título y descripción oficiales y los **24 elementos** de la checklist JOTA JOTI 2026 agrupados por categoría (signos, naturaleza, objetos, fotos) con su tipo (`PHOTO`/`OBJECT`/`NUMERIC`/`COLLECTION`) y `requiresPhoto`. **No borra nada**: crea los faltantes, actualiza metadatos de los existentes y respeta `active`. Idempotente. Después podés editar/desactivar desde el panel admin |
+| Configurar el safari | Evento → **Safari** (crear, items, categoría, tipo, requiere foto, orden, activo) |
 | Reiniciar progreso del safari | Evento → **Safari** → *Reiniciar* (por equipo o todos); queda auditado |
 | Correr tests | `npm test` |
 | Compilar todo | `npm run build` |

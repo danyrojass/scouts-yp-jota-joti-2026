@@ -8,8 +8,13 @@ export type TeamSafariItem = {
   name: string;
   description: string | null;
   position: number;
+  category: string;
+  itemType: string;
+  requiresPhoto: boolean;
   found: boolean;
   foundAt: string | null;
+  value: string | null;
+  photoReady: boolean;
 };
 
 /** Safari checklist for the authenticated team (active items only). */
@@ -30,19 +35,42 @@ export async function getTeamSafari(teamId: string) {
     const finds = await prisma.safariFind.findMany({
       where: { teamId, itemId: { in: safari.items.map((i) => i.id) } },
     });
-    const foundMap = new Map(finds.map((f) => [f.itemId, f.foundAt] as const));
-    items = safari.items.map((item) => ({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      position: item.position,
-      found: foundMap.has(item.id),
-      foundAt: foundMap.get(item.id)?.toISOString() ?? null,
-    }));
+    const findMap = new Map(finds.map((f) => [f.itemId, f]));
+    items = safari.items.map((item) => {
+      const find = findMap.get(item.id);
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        position: item.position,
+        category: item.category,
+        itemType: item.itemType,
+        requiresPhoto: item.requiresPhoto,
+        found: Boolean(find),
+        foundAt: find?.foundAt.toISOString() ?? null,
+        value: find?.value ?? null,
+        photoReady: find?.photoReady ?? false,
+      };
+    });
   }
 
   const found = items.filter((i) => i.found).length;
   const total = items.length;
+
+  const categoryOrder = ["LUGARES_CULTURA", "NATURALEZA", "OBJETOS_CURIOSIDADES", "DESAFIOS_FOTOGRAFICOS", "GENERAL"];
+  const categories = categoryOrder
+    .map((category) => {
+      const inCat = items.filter((i) => i.category === category);
+      if (inCat.length === 0) return null;
+      const done = inCat.filter((i) => i.found).length;
+      return {
+        category,
+        total: inCat.length,
+        found: done,
+        percent: Math.round((done / inCat.length) * 100),
+      };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null);
 
   return {
     team: { id: team.id, name: team.name },
@@ -56,9 +84,11 @@ export async function getTeamSafari(teamId: string) {
         }
       : null,
     items,
+    categories,
     progress: {
       total,
       found,
+      pending: total - found,
       done: total > 0 && found >= total,
       percent: total > 0 ? Math.round((found / total) * 100) : 0,
     },
@@ -68,11 +98,13 @@ export async function getTeamSafari(teamId: string) {
 /**
  * Marks (or unmarks) an item as found for the team. Idempotent: the unique
  * (itemId, teamId) pair guarantees a single find even under concurrency.
+ * `value` stores the observation (p.ej. la cantidad de aros de básquetbol).
  */
 export async function setSafariItemFound(
   teamId: string,
   itemId: string,
-  found: boolean
+  found: boolean,
+  value?: string | null
 ) {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
@@ -93,17 +125,72 @@ export async function setSafariItemFound(
     throw ApiError.conflict("El evento no esta en curso");
   }
 
+  if (item.itemType === "NUMERIC" && found && !value) {
+    throw ApiError.badRequest(
+      "Este desafio requiere registrar la observacion (un numero o respuesta)"
+    );
+  }
+
   if (found) {
     if (!item.safari.active) throw ApiError.conflict("El safari no esta activo");
     if (!item.active) throw ApiError.conflict("Este elemento no esta activo");
     await prisma.safariFind.upsert({
       where: { itemId_teamId: { itemId, teamId } },
-      update: {},
-      create: { safariId: item.safariId, itemId, teamId, eventId: team.eventId },
+      update: { value: value ?? null },
+      create: {
+        safariId: item.safariId,
+        itemId,
+        teamId,
+        eventId: team.eventId,
+        value: value ?? null,
+      },
     });
   } else {
     await prisma.safariFind.deleteMany({ where: { itemId, teamId } });
   }
+
+  return getTeamSafari(teamId);
+}
+
+/**
+ * Registers whether the photographic evidence for a found item is prepared /
+ * shared according to the event rules. It never publishes nor exposes the photo;
+ * only records the team's declaration.
+ */
+export async function setSafariPhotoReady(
+  teamId: string,
+  itemId: string,
+  ready: boolean
+) {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: { event: { select: { id: true, status: true } } },
+  });
+  if (!team) throw ApiError.unauthorized("Sesion de equipo invalida");
+
+  const item = await prisma.safariItem.findUnique({
+    where: { id: itemId },
+    include: { safari: { select: { eventId: true } } },
+  });
+  if (!item) throw ApiError.notFound("Elemento del safari no encontrado");
+  if (item.safari.eventId !== team.eventId) {
+    throw ApiError.forbidden("Este safari no pertenece a tu evento");
+  }
+  if (team.event.status !== "IN_PROGRESS") {
+    throw ApiError.conflict("El evento no esta en curso");
+  }
+
+  const find = await prisma.safariFind.findUnique({
+    where: { itemId_teamId: { itemId, teamId } },
+  });
+  if (!find) {
+    throw ApiError.conflict("Primero marca el elemento como encontrado");
+  }
+
+  await prisma.safariFind.update({
+    where: { id: find.id },
+    data: { photoReady: ready },
+  });
 
   return getTeamSafari(teamId);
 }
@@ -175,6 +262,9 @@ export async function createSafariItem(
     description?: string | null;
     position?: number;
     active?: boolean;
+    category?: string;
+    itemType?: string;
+    requiresPhoto?: boolean;
   }
 ) {
   const safari = await prisma.safari.findUnique({ where: { id: safariId } });
@@ -196,6 +286,9 @@ export async function createSafariItem(
       description: data.description ?? null,
       position,
       active: data.active ?? true,
+      category: data.category ?? "GENERAL",
+      itemType: data.itemType ?? "PHOTO",
+      requiresPhoto: data.requiresPhoto ?? false,
     },
   });
 }
@@ -207,6 +300,9 @@ export async function updateSafariItem(
     description?: string | null;
     position?: number;
     active?: boolean;
+    category?: string;
+    itemType?: string;
+    requiresPhoto?: boolean;
   }
 ) {
   const item = await prisma.safariItem.findUnique({ where: { id: itemId } });
@@ -218,6 +314,9 @@ export async function updateSafariItem(
       description: data.description !== undefined ? data.description : undefined,
       position: data.position ?? undefined,
       active: data.active ?? undefined,
+      category: data.category ?? undefined,
+      itemType: data.itemType ?? undefined,
+      requiresPhoto: data.requiresPhoto ?? undefined,
     },
   });
 }

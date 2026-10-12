@@ -174,13 +174,26 @@ export type Dashboard = {
   }[];
 };
 
+export type SafariItemType = "PHOTO" | "OBJECT" | "NUMERIC" | "COLLECTION";
+export type SafariCategory =
+  | "LUGARES_CULTURA"
+  | "NATURALEZA"
+  | "OBJETOS_CURIOSIDADES"
+  | "DESAFIOS_FOTOGRAFICOS"
+  | "GENERAL";
+
 export type SafariTeamItem = {
   id: string;
   name: string;
   description: string | null;
   position: number;
+  category: SafariCategory;
+  itemType: SafariItemType;
+  requiresPhoto: boolean;
   found: boolean;
   foundAt: string | null;
+  value: string | null;
+  photoReady: boolean;
 };
 
 export type TeamSafari = {
@@ -188,7 +201,13 @@ export type TeamSafari = {
   event: { id: string; name: string; status: EventStatus };
   safari: { id: string; title: string; description: string | null; active: boolean } | null;
   items: SafariTeamItem[];
-  progress: { total: number; found: number; done: boolean; percent: number };
+  categories: {
+    category: SafariCategory;
+    total: number;
+    found: number;
+    percent: number;
+  }[];
+  progress: { total: number; found: number; pending: number; done: boolean; percent: number };
 };
 
 export type AdminSafariItem = {
@@ -198,6 +217,9 @@ export type AdminSafariItem = {
   description: string | null;
   position: number;
   active: boolean;
+  category: SafariCategory;
+  itemType: SafariItemType;
+  requiresPhoto: boolean;
 };
 
 export type AdminSafari = {
