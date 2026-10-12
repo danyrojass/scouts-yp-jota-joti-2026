@@ -8,6 +8,15 @@ type Props = {
 
 type ScannerStatus = "starting" | "scanning" | "camera-denied" | "error" | "stopped";
 
+// Orden de intentos: cámara trasera (ideal, sin fallar si no existe), trasera
+// estricta y, como último recurso, cualquier cámara. Evita el bug de
+// `decodeFromVideoDevice("environment")`, que trata ese string como deviceId.
+const CONSTRAINT_FALLBACKS: MediaStreamConstraints[] = [
+  { video: { facingMode: { ideal: "environment" } } },
+  { video: { facingMode: "environment" } },
+  { video: true },
+];
+
 export function QrScanner({ onDecode }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
@@ -17,36 +26,54 @@ export function QrScanner({ onDecode }: Props) {
     let cancelled = false;
     const reader = new BrowserQRCodeReader();
 
-    reader
-      .decodeFromVideoDevice(
-        "environment",
-        videoRef.current!,
-        (result, _error, controls) => {
-          if (cancelled) return;
-          if (result && result.getText()) {
-            controls.stop();
-            setStatus("stopped");
-            onDecode(result.getText());
-          }
-        }
-      )
-      .then((controls) => {
-        controlsRef.current = controls;
-        if (!cancelled) setStatus("scanning");
-      })
-      .catch((err: unknown) => {
+    const isPermissionError = (err: unknown) => {
+      const name = (err as { name?: string })?.name ?? "";
+      const message = (err as Error)?.message?.toLowerCase() ?? "";
+      return (
+        name === "NotAllowedError" ||
+        name === "PermissionDeniedError" ||
+        name === "SecurityError" ||
+        message.includes("permission")
+      );
+    };
+
+    const start = async () => {
+      for (const constraints of CONSTRAINT_FALLBACKS) {
         if (cancelled) return;
-        const name = (err as { name?: string })?.name ?? "";
-        if (
-          name === "NotAllowedError" ||
-          name === "PermissionDeniedError" ||
-          (err as Error).message?.includes("permission")
-        ) {
-          setStatus("camera-denied");
-        } else {
-          setStatus("error");
+        try {
+          const controls = await reader.decodeFromConstraints(
+            constraints,
+            videoRef.current!,
+            (result, _error, ctrls) => {
+              if (cancelled) return;
+              if (result && result.getText()) {
+                ctrls.stop();
+                setStatus("stopped");
+                onDecode(result.getText());
+              }
+            }
+          );
+          if (cancelled) {
+            controls.stop();
+            return;
+          }
+          controlsRef.current = controls;
+          setStatus("scanning");
+          return;
+        } catch (err) {
+          if (cancelled) return;
+          // Permiso denegado: no tiene sentido seguir probando variantes.
+          if (isPermissionError(err)) {
+            setStatus("camera-denied");
+            return;
+          }
+          // Otro error (p.ej. la cámara pedida no existe): probamos la siguiente.
         }
-      });
+      }
+      if (!cancelled) setStatus("error");
+    };
+
+    void start();
 
     return () => {
       cancelled = true;
@@ -76,9 +103,9 @@ export function QrScanner({ onDecode }: Props) {
       )}
       {status === "error" && (
         <div className="bg-red-50 p-5 text-sm font-bold text-red-800">
-          No se pudo iniciar el escáner. Usá la cámara nativa del teléfono (la
-          app de fotos lee códigos QR automáticamente) y recordá que en
-          producción el acceso a cámara requiere HTTPS.
+          No se pudo iniciar el escáner en este dispositivo. Cerrá otras apps que
+          usen la cámara, recargá la página y volvé a intentar. Si sigue fallando,
+          usá la cámara nativa del teléfono (la app de fotos lee códigos QR).
         </div>
       )}
       {status === "scanning" && (
