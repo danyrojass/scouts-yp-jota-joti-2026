@@ -137,3 +137,36 @@ Commits:
 - `ce6a141` feat(rutas): subconjunto aleatorio de postas pero en orden geografico
 - `ccc0ead` fix(client): iniciar el escaner con facingMode en vez de deviceId
 - `d991a6f` feat(admin): mostrar las preguntas por equipo en Itinerarios
+
+## Funcionalidad: Safari JOTA JOTI 2026 (2026-10-12)
+
+- **Checklist oficial de 24 elementos** en 4 categorías (Lugares y cultura: 5,
+  Naturaleza: 7, Objetos y curiosidades: 10, Desafíos fotográficos: 2) con
+  `requiresPhoto` (17 requieren foto). Tipos por desafío: `PHOTO` (16),
+  `OBJECT` (6), `NUMERIC` (1: "Contar los aros de básquetbol") y `COLLECTION` (1).
+  Orden canónico 1..24 verificado.
+- **Seed oficial**: `npm run seed-safari` crea el safari ("Safari JOTA JOTI 2026 —
+  Ypacaraí") y los 24 elementos **sin borrar nada** (upsert por nombre; crea los
+  faltantes, actualiza metadatos, respeta `active`). Idempotente (2ª corrida:
+  0 creados). Aplicado a Neon con la migración aditiva `20261012200000_safari_checklist`.
+- **Progreso por equipo** en Postgres: `found/total/percent/pending`, resumen por
+  categoría, ítems con `found/foundAt/value/photoReady`. `NUMERIC` exige `value`.
+  `POST /safari/items/:id/photo` registra la evidencia fotográfica **declarada**
+  (no sube imágenes).
+- **Ambiente de prueba del equipo**: checklist agrupado por categoría (progreso
+  por sección), sección "Seguridad y respeto del entorno", sección **WhatsApp al
+  final** con el enlace oficial (`https://chat.whatsapp.com/C0vmzEN33swAGVejxobdLP`,
+  botón "Compartir fotos en WhatsApp", apertura en pestaña nueva + aclaración de
+  envío manual) y recién después el mensaje de finalización.
+- **Admin**: form de ítems con categoría/tipo/`requiresPhoto`, badges en la lista,
+  CRUD, reorden, progreso por equipo y reset con confirmación.
+- **Verificado en el deploy**: `GET /safari` = 24 items en orden (5/7/10/2),
+  tipos, 17 requieren foto, item 16 `NUMERIC`; guarda del evento en `PREPARED`
+  → `409 "El evento no esta en curso"`; CSRF bloquea POST sin token (403);
+  `GET /admin/safari` con los campos nuevos; progreso `active=24 teams=10`.
+  El flujo de escritura completo (marcar/valor/foto por equipo) queda pendiente de
+  probar en vivo cuando el evento pase a `IN_PROGRESS`; el path está cubierto por
+  `server/tests/safari.test.ts` (no ejecutable local: Postgres/Docker apagados).
+
+Commit:
+- `3415b42` feat(safari): checklist oficial JOTA JOTI 2026 con categorias, tipos y evidencia fotografica
