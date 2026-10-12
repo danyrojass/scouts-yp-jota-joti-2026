@@ -92,8 +92,10 @@ async function main() {
   );
 
   // 10 equipos: usuario y nombre visible = "equipo1".."equipo10". Cada equipo
-  // recorre las MISMAS postas en un orden aleatorio independiente.
+  // recorre una SELECCION aleatoria de 8 postas (subconjunto de las 20), en un
+  // orden tambien aleatorio.
   const TEAM_COUNT = 10;
+  const STATIONS_PER_TEAM = Number(process.env.TEAM_STATION_COUNT) || 8;
   const TEAM_PASSWORD = process.env.TEAM_PASSWORD || "explora2026";
 
   for (let i = 0; i < TEAM_COUNT; i++) {
@@ -107,7 +109,7 @@ async function main() {
         active: true,
       },
     });
-    const order = shuffle(stations);
+    const order = shuffle(stations).slice(0, STATIONS_PER_TEAM);
     await prisma.routeStop.createMany({
       data: order.map((s, pos) => ({
         teamId: team.id,
@@ -122,6 +124,7 @@ async function main() {
 Seed completado.
 - Evento: ${event.name} (${event.status})
 - Postas: ${stations.length}
+- Postas por equipo: ${STATIONS_PER_TEAM} (seleccion aleatoria)
 - Equipos: equipo1..equipo${TEAM_COUNT}  (contrasena: ${TEAM_PASSWORD})
 - Admin: ${adminUsername}
 `);
