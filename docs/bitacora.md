@@ -9,11 +9,12 @@ Registro de avance del despliegue de **Exploración de Ypacaraí** en Vercel.
   - Root Directory: `./` (raíz del repo)
   - Application Preset: `Other`
   - Services: **OFF**
-- El deploy **compila**, pero en runtime fallaba con
-  `Invalid environment configuration` para `SESSION_SECRET` y `PUBLIC_BASE_URL`.
-- **Fix de código pusheado** (`1382825`): el parser ahora recorta comillas/espacios
-  y loguea el motivo exacto por variable. **Pendiente**: corregir los valores en
-  Vercel y **verificar** `/api/health` en el dominio (nada probado todavía).
+- El deploy **compila** y en runtime quedó **operativo** (verificado 2026-10-12):
+  `/api/health` → `{"status":"ok"}` y login admin y de equipo OK.
+- Cadena resuelta: `Invalid environment configuration` → fix de parser (`1382825`);
+  `Origen no permitido por CORS` → CORS permite `PUBLIC_BASE_URL` y las URLs de
+  Vercel (`0c94e65`); `P2021` (tablas inexistentes) → migraciones aplicadas a Neon;
+  datos → seed (admin + equipos demo).
 
 ## Configuración usada
 
@@ -65,15 +66,25 @@ para `prisma migrate deploy` desde local.
 
 ## Próximos pasos
 
-1. Corregir en Production `SESSION_SECRET` (≥32, sin comillas) y
-   `PUBLIC_BASE_URL` (`https://…`, sin comillas) → **Redeploy**.
-   El error `{ PUBLIC_BASE_URL: […], SESSION_SECRET: […] }` significa que las
-   variables **están seteadas pero inválidas** (no que falten): revisar comillas,
-   `https://` y longitud ≥32. El log nuevo muestra el motivo de cada una.
-2. Migrar la DB con la URL **unpooled**:
-   `cd server; $env:DATABASE_URL="<unpooled>"; npx prisma migrate deploy`
-3. Crear datos: `npm run create-admin` y/o `prisma db seed` (postas demo).
-4. Verificar login (`/login`), admin (`/admin`) y equipo (`/pasaporte`).
+1. ~~Corregir env vars~~ ✅ (Production).
+2. ~~Migrar la DB con la URL unpooled~~ ✅ (`prisma migrate deploy` sobre Neon).
+3. ~~Crear datos~~ ✅ (seed: admin + equipos `aguara`/`lobo`/`halcon`).
+4. ~~Verificar login~~ ✅ (`/api/health`, login admin y equipo contra el deploy).
+5. **Seguridad (pendiente)**:
+   - **Rotar la contraseña** del rol de Neon (se pegaron credenciales en el chat),
+     actualizar `DATABASE_URL` (pooled) en Vercel y **Redeploy**.
+   - Cambiar la contraseña del **admin** (usar `npm run create-admin`) y de los
+     equipos antes del evento real.
+   - Reemplazar/borrar los **datos demo** (evento, postas y equipos) por los reales.
+
+## Verificación (2026-10-12)
+
+```powershell
+# health
+Invoke-RestMethod "https://scouts-yp-jota-joti-2026.vercel.app/api/health"
+# login equipo (con header Origin, como el browser)
+# -> { principal: { type: "team", ... } }
+```
 
 ## Notas y trampas
 
