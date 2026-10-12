@@ -1,0 +1,232 @@
+// Exploracion de Ypacarai - Prisma schema
+// PostgreSQL data model for the orienteering QR race.
+
+generator client {
+  provider      = "prisma-client-js"
+  // "native" for local dev (Windows/Linux/macOS), rhel-openssl-3.0.x for the
+  // Amazon Linux runtime used by Vercel when running `prisma migrate deploy`.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+}
+
+enum EventStatus {
+  PREPARED
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+enum ChallengeType {
+  CODE
+  QUESTION
+  CONFIRMATION
+  AUTO
+}
+
+enum VisitStatus {
+  VALID
+  INCORRECT
+}
+
+// Administrative users.
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         Role     @default(ADMIN)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs AuditLog[]
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  date        DateTime
+  location    String?
+  status      EventStatus @default(PREPARED)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  teams    Team[]
+  stations Station[]
+  visits   StationVisit[]
+  auditLogs AuditLog[]
+  safari   Safari?
+  safariFinds SafariFind[]
+
+  @@index([status])
+}
+
+model Team {
+  id           String   @id @default(cuid())
+  eventId      String
+  name         String
+  username     String   @unique
+  passwordHash String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  event      Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  routeStops RouteStop[]
+  visits     StationVisit[]
+  safariFinds SafariFind[]
+  auditLogs  AuditLog[]
+
+  @@index([eventId])
+  @@unique([eventId, name])
+}
+
+model Station {
+  id             String        @id @default(cuid())
+  eventId        String
+  name           String
+  description    String?
+  publicToken    String        @unique
+  challengeType  ChallengeType
+  instructions   String?
+  displayedCode  String?
+  expectedAnswer String?
+  autoAcceptAny  Boolean       @default(false)
+  active         Boolean       @default(true)
+  // Optional geographic position, loaded by an admin (form or CSV). NULL means
+  // the station has no coordinates yet and cannot be drawn on the map.
+  latitude       Float?
+  longitude      Float?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  event      Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  routeStops RouteStop[]
+  visits     StationVisit[]
+
+  @@index([eventId])
+  @@unique([eventId, name])
+}
+
+// A station position inside a team's itinerary.
+model RouteStop {
+  id        String @id @default(cuid())
+  teamId    String
+  stationId String
+  position  Int
+
+  team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, position])
+  @@unique([teamId, stationId])
+  @@index([teamId])
+}
+
+model StationVisit {
+  id              String      @id @default(cuid())
+  eventId         String
+  teamId          String
+  stationId       String
+  visitedAt       DateTime    @default(now())
+  submittedAnswer String?
+  isCorrect       Boolean?
+  status          VisitStatus
+  attemptNumber   Int         @default(1)
+  // Set only when the visit is VALID: "<teamId>:<stationId>". Postgres allows
+  // multiple NULLs in a unique column, so this enforces at most one VALID
+  // visit per team+station while allowing unlimited incorrect attempts.
+  validKey        String?     @unique
+
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, stationId])
+  @@index([eventId])
+  @@index([visitedAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  actorType String
+  actorId   String?
+  userId    String?
+  teamId    String?
+  eventId   String?
+  createdAt DateTime @default(now())
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  team  Team?  @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// Safari de Exploracion: a per-event checklist the teams complete together. It
+// is fully independent from the QR-station itinerary and progress.
+model Safari {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  title       String   @default("Safari de Exploración")
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  items SafariItem[]
+  finds SafariFind[]
+
+  @@index([eventId])
+}
+
+model SafariItem {
+  id          String   @id @default(cuid())
+  safariId    String
+  name        String
+  description String?
+  position    Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  safari Safari      @relation(fields: [safariId], references: [id], onDelete: Cascade)
+  finds  SafariFind[]
+
+  @@index([safariId])
+}
+
+// A single "found" mark. The unique pair guarantees at most one find per item
+// and team, so concurrent marks cannot duplicate.
+model SafariFind {
+  id       String   @id @default(cuid())
+  safariId String
+  itemId   String
+  teamId   String
+  eventId  String
+  foundAt  DateTime @default(now())
+
+  safari Safari     @relation(fields: [safariId], references: [id], onDelete: Cascade)
+  item   SafariItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  team   Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  event  Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, teamId])
+  @@index([teamId])
+  @@index([safariId])
+  @@index([eventId])
+}

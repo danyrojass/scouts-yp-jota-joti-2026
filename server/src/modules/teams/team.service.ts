@@ -1,0 +1,192 @@
+import { prisma } from "@/lib/prisma";
+import { ApiError } from "@/utils/errors";
+import { hashPassword } from "@/modules/auth/auth.service";
+
+const usernameTakenError = (username: string) =>
+  ApiError.conflict(
+    `El nombre de usuario "${username}" ya esta en uso. Elegi otro.`
+  );
+
+async function assertUsernameAvailable(username: string, excludeTeamId?: string) {
+  const [team, user] = await Promise.all([
+    prisma.team.findUnique({ where: { username } }),
+    prisma.user.findUnique({ where: { username } }),
+  ]);
+  if (team && team.id !== excludeTeamId) throw usernameTakenError(username);
+  if (user) throw usernameTakenError(username);
+}
+
+export async function listTeams(eventId: string) {
+  return prisma.team.findMany({
+    where: { eventId },
+    orderBy: { name: "asc" },
+    include: {
+      routeStops: {
+        orderBy: { position: "asc" },
+        select: { id: true, position: true, stationId: true },
+      },
+      _count: { select: { visits: true } },
+    },
+  });
+}
+
+export async function createTeam(eventId: string, data: {
+  name: string;
+  username: string;
+  password: string;
+  active: boolean;
+}) {
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) throw ApiError.notFound("Evento no encontrado");
+
+  await assertUsernameAvailable(data.username);
+
+  return prisma.team.create({
+    data: {
+      eventId,
+      name: data.name,
+      username: data.username,
+      passwordHash: await hashPassword(data.password),
+      active: data.active,
+    },
+  });
+}
+
+export async function getTeamById(id: string, includeRuntime = false) {
+  const team = await prisma.team.findUnique({
+    where: { id },
+    include: includeRuntime
+      ? {
+          event: true,
+          routeStops: {
+            orderBy: { position: "asc" },
+            include: { station: true },
+          },
+          visits: { orderBy: { visitedAt: "desc" } },
+        }
+      : { event: true, routeStops: { orderBy: { position: "asc" } } },
+  });
+  if (!team) throw ApiError.notFound("Equipo no encontrado");
+  return team;
+}
+
+export async function updateTeam(id: string, data: {
+  name?: string;
+  password?: string;
+  active?: boolean;
+}) {
+  const team = await prisma.team.findUnique({ where: { id } });
+  if (!team) throw ApiError.notFound("Equipo no encontrado");
+
+  return prisma.team.update({
+    where: { id },
+    data: {
+      name: data.name,
+      active: data.active,
+      ...(data.password ? { passwordHash: await hashPassword(data.password) } : {}),
+    },
+  });
+}
+
+/**
+ * Replaces the team itinerary with the given ordered station ids. During an
+ * in-progress event ordinary edits are blocked unless `force` is true.
+ */
+export async function setTeamRoute(
+  teamId: string,
+  stationIds: string[],
+  force: boolean,
+  actorType: string,
+  actorId?: string
+) {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: { event: true },
+  });
+  if (!team) throw ApiError.notFound("Equipo no encontrado");
+
+  if (team.event.status === "IN_PROGRESS" && !force) {
+    throw ApiError.forbidden(
+      "El evento esta en curso. Los itinerarios no pueden modificarse. Usa la confirmacion excepcional si es necesario."
+    );
+  }
+
+  const stations = await prisma.station.findMany({
+    where: { id: { in: stationIds } },
+  });
+  const found = new Set(stations.map((s) => s.id));
+  for (const id of stationIds) {
+    if (!found.has(id)) throw ApiError.badRequest(`La posta ${id} no existe`);
+  }
+  const foreign = stations.find((s) => s.eventId !== team.eventId);
+  if (foreign) {
+    throw ApiError.badRequest(
+      `La posta "${foreign.name}" no pertenece al evento del equipo`
+    );
+  }
+
+  const route = await prisma.$transaction(async (tx) => {
+    await tx.routeStop.deleteMany({ where: { teamId } });
+    return tx.routeStop.createMany({
+      data: stationIds.map((stationId, index) => ({
+        teamId,
+        stationId,
+        position: index + 1,
+      })),
+    });
+  });
+
+  const auditDetails: Record<string, unknown> = {
+    order: stationIds,
+    forced: force,
+    eventStatus: team.event.status,
+  };
+
+  await prisma.auditLog.create({
+    data: {
+      action: force ? "ROUTE_EDIT_FORCED" : "ROUTE_SET",
+      entity: "RouteStop",
+      entityId: team.id,
+      actorType,
+      actorId: actorId ?? null,
+      userId: actorType === "admin" ? actorId ?? null : null,
+      teamId,
+      eventId: team.eventId,
+      details: JSON.stringify(auditDetails),
+    },
+  });
+
+  return { count: route.count };
+}
+
+export async function resetTeamProgress(
+  teamId: string,
+  actorType: string,
+  actorId?: string
+) {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: { event: true },
+  });
+  if (!team) throw ApiError.notFound("Equipo no encontrado");
+
+  const previous = await prisma.stationVisit.count({ where: { teamId } });
+
+  await prisma.stationVisit.deleteMany({ where: { teamId } });
+
+  await prisma.auditLog.create({
+    data: {
+      action: "PROGRESS_RESET",
+      entity: "StationVisit",
+      entityId: team.id,
+      actorType,
+      actorId: actorId ?? null,
+      userId: actorType === "admin" ? actorId ?? null : null,
+      teamId,
+      eventId: team.eventId,
+      details: JSON.stringify({ deletedVisits: previous, timestamp: new Date().toISOString() }),
+    },
+  });
+
+  return { deletedVisits: previous };
+}

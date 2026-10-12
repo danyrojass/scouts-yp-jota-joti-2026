@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+.DS_Store
+coverage/
+.vite/
+# Vercel
+.vercel/
+# Prisma
+server/prisma/migrations/dev.db*
+# Editor
+.idea/
+.vscode/*
+!.vscode/extensions.json

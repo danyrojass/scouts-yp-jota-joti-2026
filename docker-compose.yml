@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ypacarai-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ypacarai
+      POSTGRES_PASSWORD: ypacarai
+      POSTGRES_DB: ypacarai
+    ports:
+      # 5433 en el host evita conflictos con un PostgreSQL local instalado en 5432.
+      - "5433:5432"
+    volumes:
+      - ypacarai_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ypacarai -d ypacarai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ypacarai_pgdata:

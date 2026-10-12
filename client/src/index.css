@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-forest-100;
+  }
+  body {
+    @apply font-sans text-forest-900 antialiased;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-base font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-forest-700 text-white hover:bg-forest-800 active:bg-forest-900;
+  }
+  .btn-secondary {
+    @apply btn bg-beige-100 text-forest-800 ring-1 ring-beige-300 hover:bg-beige-200;
+  }
+  .btn-orange {
+    @apply btn bg-clay-500 text-white hover:bg-clay-600 active:bg-clay-700;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+  .btn-ghost {
+    @apply btn text-forest-700 hover:bg-forest-50;
+  }
+  .card {
+    @apply rounded-3xl bg-white p-5 shadow-card;
+  }
+  .input {
+    @apply w-full rounded-xl border border-beige-300 bg-white px-4 py-3 text-forest-900 outline-none transition focus:border-forest-500 focus:ring-2 focus:ring-forest-200;
+  }
+  .label {
+    @apply mb-1 block text-sm font-bold text-forest-800;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide;
+  }
+  .itinerary-marker {
+    background: transparent;
+    border: none;
+  }
+}

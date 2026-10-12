@@ -1,0 +1,32 @@
+{
+  "name": "exploracion-ypacarai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Carrera de orientacion por postas con codigos QR - Exploracion de Ypacarai",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c green,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "build": "npm --workspace server run build && npm --workspace client run build",
+    "build:vercel": "npm run db:generate && npm run build",
+    "test": "npm run test:server && npm run test:client",
+    "test:server": "npm --workspace server run test",
+    "test:client": "npm --workspace client run test",
+    "typecheck": "npm --workspace server run typecheck && npm --workspace client run typecheck",
+    "db:generate": "npm --workspace server run db:generate",
+    "db:migrate": "npm --workspace server run db:migrate",
+    "db:deploy": "npm --workspace server run db:deploy",
+    "db:seed": "npm --workspace server run db:seed",
+    "create-admin": "npm --workspace server run create-admin"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

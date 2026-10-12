@@ -1,0 +1,121 @@
+# API — Exploración de Ypacarai
+
+Base URL: `/api/v1`. En desarrollo, el cliente (5173) proxya `/api` hacia el servidor (4000).
+
+- Autenticación: **cookie de sesión** (`ypacarai.sid`, HttpOnly). Todas las llamadas usan `credentials: "include"`.
+- **CSRF**: los métodos `POST`, `PUT`, `PATCH`, `DELETE` requieren el header `x-csrf-token` con el token de la sesión. Se obtiene en `GET /auth/csrf` (o en la respuesta del login).
+- Formato de error: `{ "error": { "code": string, "message": string, "details"?: unknown } }`.
+- Códigos: `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409), `TOO_MANY_REQUESTS` (429), `BAD_REQUEST` (400), `INTERNAL_ERROR` (500).
+
+## Autenticación
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/auth/csrf` | — | Devuelve `{ csrfToken }` para la sesión actual. |
+| POST | `/auth/login` | — | Body `{ username, password }` → `{ principal, csrfToken }`. Regenera la sesión. |
+| POST | `/auth/logout` | cualquiera | Cierra la sesión → `{ ok: true }`. |
+| GET | `/auth/me` | cualquiera | Devuelve `{ principal }` de la sesión. |
+
+`principal` es `{ type: "admin", user }` o `{ type: "team", team, eventName }`.
+
+## Equipo (rol `team`)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/passport` | Pasaporte: `{ team, event, progress, stops, history }`. Cada stop incluye `latitude`, `longitude` y `mapsUrl` (null si la posta no tiene coordenadas). |
+| GET | `/passport/next-station` | `{ nextStation }` (id o null). |
+| GET | `/visits/posta/:token` | Pantalla de desafío. `{ status, station? }`. |
+| POST | `/visits` | Registra visita. Body `{ publicToken, answer }`. |
+| GET | `/safari` | Safari del equipo: `{ team, event, safari, items, progress }`. `safari` es `null` si el evento no tiene safari. |
+| POST | `/safari/items/:itemId/find` | Marca un elemento como encontrado (idempotente). Requiere evento `IN_PROGRESS` (`409` si no lo está; `403` si el elemento es de otro evento). Devuelve el safari actualizado. |
+| DELETE | `/safari/items/:itemId/find` | Desmarca un elemento (idempotente). Mismas restricciones. |
+
+### Estados de `/visits/posta/:token`
+
+`NEXT` (con `station`), `NOT_YOUR_NEXT`, `COMPLETED`, `INACTIVE`, `WRONG_EVENT`, `EVENT_NOT_READY`, `EVENT_FINISHED`, `EVENT_CANCELLED`.
+
+Cuando es `NEXT`, `station` incluye `{ id, name, instructions, challengeType, autoAcceptAny, displayedCode }` — nunca `expectedAnswer`.
+
+### Resultado de `POST /visits`
+
+```jsonc
+// válida
+{ "result": "VALID", "message": "...", "nextStation": { "id", "name", "position" } | null, "remaining": 3 }
+// respuesta incorrecta
+{ "result": "INCORRECT", "message": "...", "attemptNumber": 1 }
+// sin avance
+{ "result": "ALREADY_COMPLETED" | "NOT_YOUR_NEXT" | "EVENT_NOT_READY" | "EVENT_FINISHED" | "EVENT_CANCELLED" | "INACTIVE" | "WRONG_EVENT", "message": "..." }
+```
+
+## Eventos (rol `admin`)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/events` | Lista de eventos con conteos. |
+| GET | `/events/:id` | Evento con `teams` (y sus `routeStops`) y `stations`. |
+| POST | `/events` | Crea evento. Body `{ name, description?, date, location?, status? }`. |
+| PATCH | `/events/:id` | Actualiza datos/estado. Con `IN_PROGRESS`, editar datos requiere `force`. |
+| POST | `/events/:id/start` | `PREPARED → IN_PROGRESS` (valida postas e itinerarios). |
+| POST | `/events/:id/finish` | `IN_PROGRESS → FINISHED`. |
+| POST | `/events/:id/cancel` | `→ CANCELLED`. |
+| DELETE | `/events/:id` | Elimina el evento (no si está `IN_PROGRESS`) → 204. |
+
+Solo puede existir **un** evento activo a la vez (409 si se intenta crear/activar otro).
+
+## Equipos (rol `admin`)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| POST | `/teams` | Crea equipo. Body `{ eventId, name, username, password }`. |
+| GET | `/teams/:id` | Equipo con progreso. |
+| PATCH | `/teams/:id` | Actualiza `{ name?, username?, password?, active? }`. |
+| GET | `/teams/:id/route` | Itinerario ordenado. |
+| PUT | `/teams/:id/route` | Setea itinerario. Body `{ stationIds: string[], force? }`. |
+| POST | `/teams/:id/reset-progress` | Borra las visitas del equipo. |
+
+## Postas (rol `admin`)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/stations?eventId=` | Lista postas del evento. |
+| POST | `/stations` | Crea posta. Body `{ eventId, name, challengeType, instructions?, expectedAnswer?, displayedCode?, autoAcceptAny?, description?, latitude?, longitude? }`. |
+| GET | `/stations/:id` | Detalle (sin `expectedAnswer`). |
+| PATCH | `/stations/:id` | Actualiza la posta. |
+| DELETE | `/stations/:id` | Elimina → 204. |
+| GET | `/stations/:id/qr` | PNG imprimible del QR. |
+| GET | `/stations/:id/qr/data` | `{ url, token }` del QR. |
+| POST | `/stations/import` | Importa coordenadas desde CSV. Body `{ eventId, csv }` → `{ updated, errors: [{ row, error }], parsed }`. No crea postas: empareja por nombre, `publicToken` o `displayedCode`. |
+
+`challengeType`: `CODE`, `QUESTION`, `CONFIRMATION`, `AUTO`. `latitude` y `longitude` son opcionales pero deben venir juntas (`-90..90` / `-180..180`).
+
+El CSV tiene columnas `nombre, qr_id, latitud, longitud, descripcion` (el encabezado es opcional; delimitador `,`, `;` o tab).
+
+`challengeType`: `CODE`, `QUESTION`, `CONFIRMATION`, `AUTO`.
+
+## Administración / métricas (rol `admin`)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/admin/dashboard?eventId=` | Métricas y estado por equipo. |
+| GET | `/admin/results?eventId=` | Resultados en CSV (`text/csv`, con BOM). |
+| GET | `/admin/audit-logs?eventId=` | Últimos 100 registros de auditoría. |
+
+## Safari (rol `admin`)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/admin/safari?eventId=` | `{ safari }` (o `null`) con sus items. |
+| POST | `/admin/safari` | Crea el safari del evento (1:1). Body `{ eventId, title?, description? }`. |
+| PATCH | `/admin/safari/:id` | Actualiza `{ title?, description?, active? }`. |
+| GET | `/admin/safari/:id/progress` | Reporte: `{ safari, counts, teams, items }`. |
+| POST | `/admin/safari/:id/items` | Crea ítem. Body `{ name, description?, active?, position? }`. |
+| PATCH | `/admin/safari/items/:itemId` | Actualiza ítem. |
+| DELETE | `/admin/safari/items/:itemId` | Elimina ítem → 204. |
+| POST | `/admin/safari/:id/reorder` | Reordena. Body `{ itemIds: string[] }`. |
+| POST | `/admin/safari/reset` | Borra progreso. Body `{ eventId, teamId? }` (sin `teamId` = todos) → `{ deleted }`. Se audita. |
+
+## Health
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/health` | `{ status: "ok", ts }`. |
