@@ -110,3 +110,30 @@ Invoke-RestMethod "https://scouts-yp-jota-joti-2026.vercel.app/api/health"
 - `64a2fb0` chore(client): exponer el dev server en la red local (host: true)
 - `ce3a004` fix(client): anidar las subrutas del evento bajo EventDetailPage
 - `aaac61d` docs(runbook): documentar que el entorno de test se define en vitest.config.ts
+
+## Funcionalidad: rutas, preguntas y escáner (2026-10-12)
+
+- **Rutas**: cada equipo recibe un subconjunto **aleatorio** de 8 postas pero
+  **ordenado por el recorrido canónico** (`server/prisma/route.ts`), así no hay
+  idas y vueltas. `seed.ts` elige 8 índices al azar y los ordena ascendente.
+  Para reordenar las rutas **existentes sin borrar nada** (conserva preguntas y
+  tus ediciones): `npm run order-routes` (idempotente, dos pasadas de posiciones
+  negativas para no chocar con `@@unique([teamId, position])`).
+- **Preguntas bonus**: 2 por equipo (`npm run assign-questions`), una con
+  respuesta correcta (`QUESTION`) y una libre (`AUTO`), en postas distintas.
+  Viven en el itinerario (`RouteStop`), no en la posta física.
+- **Vista admin de preguntas**: en *Itinerarios* se ve, por equipo, sus postas en
+  orden y la pregunta de cada una (con la respuesta esperada si es calificada).
+  `GET /events/:id` ahora incluye `question`/`questionAnswer` por `routeStop`.
+- **Escáner (fix)**: `QrScanner` usaba `decodeFromVideoDevice("environment")`, que
+  `@zxing/browser` interpretaba como `deviceId` (`{ deviceId: { exact: "environment" } }`),
+  inexistente en los teléfonos → "No se pudo iniciar el escáner". Ahora usa
+  `decodeFromConstraints` con `facingMode: { ideal: "environment" }` y fallbacks.
+- **Nota**: en la página admin de *Postas*, todas figuran `CONFIRMATION`: es el
+  valor por defecto de la posta compartida; las preguntas por equipo se ven en
+  *Itinerarios* y se activan al escanear (con el evento `IN_PROGRESS`).
+
+Commits:
+- `ce6a141` feat(rutas): subconjunto aleatorio de postas pero en orden geografico
+- `ccc0ead` fix(client): iniciar el escaner con facingMode en vez de deviceId
+- `d991a6f` feat(admin): mostrar las preguntas por equipo en Itinerarios

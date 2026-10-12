@@ -55,7 +55,7 @@ Si el **itinerario del equipo** tiene una *pregunta bonus* en esa posta (`RouteS
 | Método | Ruta | Descripción |
 |---|---|---|
 | GET | `/events` | Lista de eventos con conteos. |
-| GET | `/events/:id` | Evento con `teams` (y sus `routeStops`) y `stations`. |
+| GET | `/events/:id` | Evento con `teams` (y sus `routeStops`, incluyendo `question`/`questionAnswer` de la pregunta bonus) y `stations`. |
 | POST | `/events` | Crea evento. Body `{ name, description?, date, location?, status? }`. |
 | PATCH | `/events/:id` | Actualiza datos/estado. Con `IN_PROGRESS`, editar datos requiere `force`. |
 | POST | `/events/:id/start` | `PREPARED → IN_PROGRESS` (valida postas e itinerarios). |
