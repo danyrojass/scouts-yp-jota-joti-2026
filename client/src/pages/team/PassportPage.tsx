@@ -1,11 +1,13 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Camera, Route, CheckCircle2, Circle, MapPin, Clock } from "lucide-react";
+import { Camera, Route, CheckCircle2, Circle, MapPin, Clock, Pencil } from "lucide-react";
 import { api } from "@/api/client";
-import type { Passport } from "@/api/types";
+import { errorMessage, type Passport } from "@/api/types";
 import { useApi } from "@/hooks/useApi";
+import { useAuth } from "@/context/AuthContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Alert } from "@/components/Alert";
+import { Modal } from "@/components/Modal";
 import { ProgressBar, Badge } from "@/components/ProgressBar";
 
 const EVENT_STATUS: Record<string, { label: string; tone: "orange" | "green" | "red" | "gray" }> = {
@@ -25,11 +27,36 @@ const TYPE_LABEL: Record<string, string> = {
 export function PassportPage() {
   const fetchPassport = useCallback(() => api.get<Passport>("/api/v1/passport"), []);
   const { data, loading, error, reload } = useApi<Passport>(fetchPassport);
+  const { refresh } = useAuth();
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => void reload(), 15000);
     return () => clearInterval(id);
   }, [reload]);
+
+  const submitRename = async (e: FormEvent) => {
+    e.preventDefault();
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      setRenameError("El nombre es obligatorio");
+      return;
+    }
+    setRenameBusy(true);
+    setRenameError(null);
+    try {
+      await api.patch("/api/v1/passport/profile", { name: trimmed });
+      setRenameOpen(false);
+      await Promise.all([reload(), refresh()]);
+    } catch (err) {
+      setRenameError(errorMessage(err, "No se pudo cambiar el nombre"));
+    } finally {
+      setRenameBusy(false);
+    }
+  };
 
   if (loading && !data) return <LoadingScreen label="Cargando pasaporte..." />;
   if (error && !data) return <Alert tone="error">{error}</Alert>;
@@ -45,7 +72,21 @@ export function PassportPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-clay-600">Pasaporte del equipo</p>
-            <h1 className="font-display text-2xl font-bold text-forest-900">{team.name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-display text-2xl font-bold text-forest-900">{team.name}</h1>
+              <button
+                onClick={() => {
+                  setNewName(team.name);
+                  setRenameError(null);
+                  setRenameOpen(true);
+                }}
+                className="rounded-lg p-1.5 text-forest-500 hover:bg-forest-50"
+                title="Cambiar nombre del equipo"
+                aria-label="Cambiar nombre del equipo"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            </div>
             <p className="flex items-center gap-1 text-sm font-semibold text-forest-600">
               <MapPin className="h-4 w-4" /> {event.name}
             </p>
@@ -159,6 +200,36 @@ export function PassportPage() {
       <p className="text-center text-xs text-forest-500">
         El progreso se guarda en el servidor y se actualiza automáticamente.
       </p>
+
+      {renameOpen && (
+        <Modal title="Cambiar nombre del equipo" onClose={() => setRenameOpen(false)}>
+          <form onSubmit={submitRename} className="space-y-4" noValidate>
+            {renameError && <Alert tone="error">{renameError}</Alert>}
+            <div>
+              <label htmlFor="team-name" className="label">Nombre visible</label>
+              <input
+                id="team-name"
+                className="input"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                maxLength={120}
+                autoFocus
+              />
+              <p className="mt-1 text-xs font-semibold text-forest-500">
+                Tu usuario para iniciar sesión no cambia.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setRenameOpen(false)} className="btn-secondary">
+                Cancelar
+              </button>
+              <button type="submit" disabled={renameBusy} className="btn-primary">
+                {renameBusy ? "Guardando…" : "Guardar"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

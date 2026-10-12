@@ -25,6 +25,15 @@ export const updateTeamSchema = z.object({
   active: z.boolean().optional(),
 });
 
+/** A team editing its own profile (display name only). */
+export const updateProfileSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "El nombre es obligatorio")
+    .max(120, "El nombre es demasiado largo"),
+});
+
 export const setRouteSchema = z.object({
   stationIds: z
     .array(z.string().min(1))

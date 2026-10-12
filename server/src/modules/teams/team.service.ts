@@ -89,6 +89,29 @@ export async function updateTeam(id: string, data: {
 }
 
 /**
+ * Allows a team to rename itself. Only the display name changes; the username
+ * (login) stays. Names must be unique within the event.
+ */
+export async function updateTeamName(teamId: string, name: string) {
+  const team = await prisma.team.findUnique({ where: { id: teamId } });
+  if (!team) throw ApiError.notFound("Equipo no encontrado");
+
+  const trimmed = name.trim();
+  if (trimmed === team.name) return team;
+
+  const clash = await prisma.team.findFirst({
+    where: { eventId: team.eventId, name: trimmed, NOT: { id: teamId } },
+  });
+  if (clash) {
+    throw ApiError.conflict(
+      `Ya existe un equipo llamado "${trimmed}" en este evento. Elegi otro nombre.`
+    );
+  }
+
+  return prisma.team.update({ where: { id: teamId }, data: { name: trimmed } });
+}
+
+/**
  * Replaces the team itinerary with the given ordered station ids. During an
  * in-progress event ordinary edits are blocked unless `force` is true.
  */

@@ -24,6 +24,7 @@ Base URL: `/api/v1`. En desarrollo, el cliente (5173) proxya `/api` hacia el ser
 |---|---|---|
 | GET | `/passport` | Pasaporte: `{ team, event, progress, stops, history }`. Cada stop incluye `latitude`, `longitude` y `mapsUrl` (null si la posta no tiene coordenadas). |
 | GET | `/passport/next-station` | `{ nextStation }` (id o null). |
+| PATCH | `/passport/profile` | El equipo renombra su **nombre visible**. Body `{ name }` → `{ team }`. Debe ser único en el evento (`409` si ya existe); el `username` de login no cambia. |
 | GET | `/visits/posta/:token` | Pantalla de desafío. `{ status, station? }`. |
 | POST | `/visits` | Registra visita. Body `{ publicToken, answer }`. |
 | GET | `/safari` | Safari del equipo: `{ team, event, safari, items, progress }`. `safari` es `null` si el evento no tiene safari. |

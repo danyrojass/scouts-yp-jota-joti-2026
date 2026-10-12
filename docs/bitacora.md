@@ -75,7 +75,9 @@ para `prisma migrate deploy` desde local.
      actualizar `DATABASE_URL` (pooled) en Vercel y **Redeploy**.
    - Cambiar la contraseña del **admin** (usar `npm run create-admin`) y de los
      equipos antes del evento real.
-   - Reemplazar/borrar los **datos demo** (evento, postas y equipos) por los reales.
+   - Reemplazar/borrar los **datos demo** (evento, postas y equipos `equipo1`..`equipo10`)
+     por los reales. Los equipos ya pueden **renombrarse** desde su pasaporte
+     (`PATCH /api/v1/passport/profile`).
 
 ## Verificación (2026-10-12)
 

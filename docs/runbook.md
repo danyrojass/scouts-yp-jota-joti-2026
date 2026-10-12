@@ -20,7 +20,7 @@ Verificar: `curl http://localhost:4000/api/health`.
 | Crear/actualizar admin | `npm run create-admin` |
 | Aplicar migraciones (dev) | `npm run db:migrate` |
 | Aplicar migraciones (prod) | `npm run db:deploy` |
-| Re-sembrar demo | vaciar la tabla `Event` y correr `npm run db:seed` |
+| Re-sembrar demo | borrar el evento (`DELETE FROM "Event"`, cascade) y correr `npm run db:seed` → evento + 5 postas + equipos `equipo1`..`equipo10` (clave `explora2026`, override con `TEAM_PASSWORD`). El admin se crea/actualiza por upsert |
 | Cargar coordenadas de postas | Evento → **Postas** → *Importar CSV* (`nombre,qr_id,latitud,longitud,descripcion`) o editando cada posta |
 | Configurar el safari | Evento → **Safari** (crear, items, orden, activo) |
 | Reiniciar progreso del safari | Evento → **Safari** → *Reiniciar* (por equipo o todos); queda auditado |
