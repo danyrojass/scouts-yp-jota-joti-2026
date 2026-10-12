@@ -83,6 +83,16 @@ Notas:
   solo Development/Preview) y hacé **Redeploy**: los cambios de env no se
   aplican a deploys ya hechos.
 
+**`Origen no permitido por CORS`**
+- El request trae un header `Origin` que no está en la allow list. En un deploy
+  same-domain (SPA + API en el mismo dominio) el browser igual manda `Origin`,
+  así que debe incluirse el dominio real.
+- El origen de `PUBLIC_BASE_URL` se permite **automáticamente**; además podés
+  listar otros en `CORS_ORIGINS` (separados por coma, con `https://`, sin barra
+  final). El error ahora incluye el origen rechazado para identificarlo.
+- Si usás dominios de **Preview** de Vercel, agregalos también o probá contra el
+  dominio de Production.
+
 **`P1001: Can't reach database server`**
 - El contenedor no está arriba: `docker compose up -d db` y `docker compose ps` (debe decir `healthy`).
 - Conflicto de puerto: si ya hay un PostgreSQL local en 5432, este proyecto usa **5433** en el host. Verificá que `DATABASE_URL` use `127.0.0.1:5433`.

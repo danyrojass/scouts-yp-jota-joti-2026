@@ -41,6 +41,7 @@ Registro de avance del despliegue de **Exploración de Ypacaraí** en Vercel.
 | `TS2688: Cannot find type definition file for 'node'` / `'vitest/globals'` | Vercel instala con `NODE_ENV=production` y omitía devDependencies | `installCommand: npm install --include=dev` + quitar `vitest/globals` del build |
 | `This project already has an existing environment variable DATABASE_URL` | Había una `DATABASE_URL` manual | Borrarla y dejar que Storage inyecte la de Neon |
 | `Invalid environment configuration` (runtime) | `SESSION_SECRET` < 32, `PUBLIC_BASE_URL` sin `https://`, o valores pegados con comillas/espacios/salto de línea | Parser endurecido: recorta comillas y espacios y loguea el motivo exacto por variable. Igual hay que corregir los valores en Vercel (ver próximos pasos) |
+| `Origen no permitido por CORS` (runtime) | `CORS_ORIGINS` no incluía el dominio real (quedó el default `localhost:5173`); el browser manda `Origin` aun en same-origin | CORS ahora permite automáticamente el origen de `PUBLIC_BASE_URL` y el error loguea el origen rechazado. Igual conviene setear `CORS_ORIGINS` con el dominio real |
 
 ## Variables de entorno (Production)
 

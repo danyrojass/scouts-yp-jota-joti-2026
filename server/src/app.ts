@@ -15,6 +15,19 @@ import { safariRoutes } from "@/modules/safari/safari.routes";
 import { safariAdminRoutes } from "@/modules/safari/safari-admin.routes";
 import { adminRoutes } from "@/modules/admin/admin.routes";
 
+/**
+ * Origins allowed by CORS. Besides `CORS_ORIGINS`, the origin of the public
+ * site (`PUBLIC_BASE_URL`) is always allowed: the SPA and the API share a
+ * domain, so the browser sends an `Origin` header that must match. This avoids
+ * a 500 "Origen no permitido por CORS" when only `PUBLIC_BASE_URL` is set.
+ */
+const allowedOrigins = new Set<string>(env.CORS_ORIGINS);
+try {
+  allowedOrigins.add(new URL(env.PUBLIC_BASE_URL).origin);
+} catch {
+  // PUBLIC_BASE_URL is already validated as a URL by zod; defensive only.
+}
+
 export function createApp() {
   const app = express();
 
@@ -30,10 +43,10 @@ export function createApp() {
   app.use(
     cors({
       origin(origin, callback) {
-        // Allow requests with no origin (curl, tests, same-origin).
+        // Allow requests with no origin (curl, tests, server-to-server).
         if (!origin) return callback(null, true);
-        if (env.CORS_ORIGINS.includes(origin)) return callback(null, true);
-        return callback(new Error("Origen no permitido por CORS"));
+        if (allowedOrigins.has(origin)) return callback(null, true);
+        return callback(new Error(`Origen no permitido por CORS: ${origin}`));
       },
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
