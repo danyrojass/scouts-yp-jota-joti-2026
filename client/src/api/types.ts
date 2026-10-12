@@ -40,7 +40,7 @@ export type TeamItem = {
   active: boolean;
   createdAt: string;
   updatedAt: string;
-  routeStops: { id: string; position: number; stationId: string }[];
+  routeStops: { id: string; position: number; stationId: string; question?: string | null; questionAnswer?: string | null }[];
   _count?: { visits: number };
 };
 

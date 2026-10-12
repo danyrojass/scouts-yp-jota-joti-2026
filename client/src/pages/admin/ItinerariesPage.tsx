@@ -40,6 +40,10 @@ export function ItinerariesPage() {
   const stationName = (id: string) => stations.find((s) => s.id === id)?.name ?? "Posta desconocida";
   const eventInProgress = event.status === "IN_PROGRESS";
 
+  const selectedTeam = teams.find((t) => t.id === selectedTeamId) ?? null;
+  const stopInfo = new Map((selectedTeam?.routeStops ?? []).map((s) => [s.stationId, s]));
+  const questionCount = (t: TeamItem) => (t.routeStops ?? []).filter((s) => s.question).length;
+
   const openTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
     setSaveMsg(null);
@@ -119,7 +123,10 @@ export function ItinerariesPage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-bold text-forest-900">{t.name}</p>
-                      {configured ? <Badge tone="green">{stops.length} postas</Badge> : <Badge tone="red">Sin configurar</Badge>}
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {questionCount(t) > 0 && <Badge tone="orange">{questionCount(t)} preguntas</Badge>}
+                        {configured ? <Badge tone="green">{stops.length} postas</Badge> : <Badge tone="red">Sin configurar</Badge>}
+                      </div>
                     </div>
                   </button>
                 </li>
@@ -148,23 +155,42 @@ export function ItinerariesPage() {
               {saveMsg && <Alert tone={saveMsg.tone}>{saveMsg.msg}</Alert>}
               <p className="text-xs font-bold uppercase tracking-wide text-forest-500">Postas del itinerario (en orden)</p>
               <ol className="space-y-2">
-                {draft.map((stationId, i) => (
-                  <li key={stationId} className="flex items-center gap-2 rounded-2xl border border-beige-200 bg-beige-50 px-3 py-2">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-forest-700 text-xs font-extrabold text-white">
-                      {i + 1}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate font-bold text-forest-900">{stationName(stationId)}</span>
-                    <button onClick={() => move(i, -1)} disabled={i === 0} className="rounded-lg p-1.5 text-forest-600 hover:bg-forest-100 disabled:opacity-30">
-                      <ArrowUp className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => move(i, 1)} disabled={i === draft.length - 1} className="rounded-lg p-1.5 text-forest-600 hover:bg-forest-100 disabled:opacity-30">
-                      <ArrowDown className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => toggleStation(stationId)} className="rounded-lg p-1.5 text-red-500 hover:bg-red-50">
-                      ✕
-                    </button>
-                  </li>
-                ))}
+                {draft.map((stationId, i) => {
+                  const stop = stopInfo.get(stationId);
+                  const graded = !!stop?.questionAnswer;
+                  return (
+                    <li key={stationId} className="rounded-2xl border border-beige-200 bg-beige-50 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-forest-700 text-xs font-extrabold text-white">
+                          {i + 1}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate font-bold text-forest-900">{stationName(stationId)}</span>
+                        <button onClick={() => move(i, -1)} disabled={i === 0} className="rounded-lg p-1.5 text-forest-600 hover:bg-forest-100 disabled:opacity-30">
+                          <ArrowUp className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => move(i, 1)} disabled={i === draft.length - 1} className="rounded-lg p-1.5 text-forest-600 hover:bg-forest-100 disabled:opacity-30">
+                          <ArrowDown className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => toggleStation(stationId)} className="rounded-lg p-1.5 text-red-500 hover:bg-red-50">
+                          ✕
+                        </button>
+                      </div>
+                      {stop?.question && (
+                        <div className="mt-2 rounded-xl border border-clay-200 bg-white px-3 py-2">
+                          <div className="flex items-start gap-2">
+                            <Badge tone={graded ? "orange" : "beige"}>{graded ? "Pregunta" : "Pregunta libre"}</Badge>
+                            <span className="text-sm font-semibold text-forest-800">{stop.question}</span>
+                          </div>
+                          {graded && (
+                            <p className="mt-1 text-xs font-bold text-forest-500">
+                              Respuesta esperada: <span className="text-forest-800">{stop.questionAnswer}</span>
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
                 {draft.length === 0 && (
                   <li className="rounded-2xl border border-dashed border-beige-300 p-4 text-center text-sm font-semibold text-forest-500">
                     Agregá postas desde el panel de la derecha.

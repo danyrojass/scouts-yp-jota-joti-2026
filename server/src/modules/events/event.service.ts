@@ -74,7 +74,7 @@ export async function getEventById(id: string, includeAll = false) {
                 username: true,
                 active: true,
                 _count: { select: { visits: true } },
-                routeStops: { select: { position: true, stationId: true } },
+                routeStops: { select: { position: true, stationId: true, question: true, questionAnswer: true } },
               },
             },
             stations: {
