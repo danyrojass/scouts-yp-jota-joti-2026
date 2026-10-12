@@ -128,5 +128,6 @@ npm run db:seed
 npm test
 ```
 - Usan una base `ypacarai_test` en la misma instancia PostgreSQL (`127.0.0.1:5433`).
+- El entorno de test (`DATABASE_URL` = `TEST_DATABASE_URL`, `NODE_ENV`, cookie, etc.) se define en `vitest.config.ts` (`test.env`), que se aplica antes de cargar cualquier módulo. No lo definas en `tests/setup.ts`: los `import` se evaluarían antes de la asignación y Prisma apuntaría a la base de desarrollo.
 - `tests/global-setup.ts` aplica migraciones y crea la tabla `session`.
 - `fileParallelism: false`: los archivos corren en serie; cada uno limpia la base antes de empezar.
