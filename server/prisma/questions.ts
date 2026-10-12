@@ -48,3 +48,17 @@ export const QUESTIONS: SeedQuestion[] = [
 export function randomQuestion(): SeedQuestion {
   return QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
 }
+
+/** Preguntas con respuesta correcta esperada (challengeType QUESTION). */
+const ANSWERED = QUESTIONS.filter((q) => q.answer);
+
+/** Preguntas de respuesta libre / cualquiera (challengeType AUTO). */
+const ANY_ANSWER = QUESTIONS.filter((q) => !q.answer);
+
+export function randomAnsweredQuestion(): SeedQuestion {
+  return ANSWERED[Math.floor(Math.random() * ANSWERED.length)];
+}
+
+export function randomAnyQuestion(): SeedQuestion {
+  return ANY_ANSWER[Math.floor(Math.random() * ANY_ANSWER.length)];
+}

@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { randomQuestion } from "./questions";
+import { randomAnsweredQuestion, randomAnyQuestion } from "./questions";
 
 const prisma = new PrismaClient();
 
@@ -119,14 +119,24 @@ async function main() {
       })),
     });
 
-    // Desafio bonus: una pregunta aleatoria en una de las postas del equipo.
+    // Desafios bonus: 2 preguntas aleatorias en postas distintas del equipo,
+    // una con respuesta correcta (QUESTION) y otra de respuesta libre (AUTO).
     const stops = await prisma.routeStop.findMany({ where: { teamId: team.id } });
-    const chosen = stops[Math.floor(Math.random() * stops.length)];
-    const question = randomQuestion();
-    await prisma.routeStop.update({
-      where: { id: chosen.id },
-      data: { question: question.text, questionAnswer: question.answer ?? null },
-    });
+    if (stops.length >= 2) {
+      const a = Math.floor(Math.random() * stops.length);
+      let b = Math.floor(Math.random() * (stops.length - 1));
+      if (b >= a) b++;
+      const answered = randomAnsweredQuestion();
+      const anyQ = randomAnyQuestion();
+      await prisma.routeStop.update({
+        where: { id: stops[a].id },
+        data: { question: answered.text, questionAnswer: answered.answer ?? null },
+      });
+      await prisma.routeStop.update({
+        where: { id: stops[b].id },
+        data: { question: anyQ.text, questionAnswer: null },
+      });
+    }
   }
 
   // eslint-disable-next-line no-console
