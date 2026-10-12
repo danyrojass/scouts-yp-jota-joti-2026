@@ -87,11 +87,12 @@ Notas:
 - El request trae un header `Origin` que no está en la allow list. En un deploy
   same-domain (SPA + API en el mismo dominio) el browser igual manda `Origin`,
   así que debe incluirse el dominio real.
-- El origen de `PUBLIC_BASE_URL` se permite **automáticamente**; además podés
-  listar otros en `CORS_ORIGINS` (separados por coma, con `https://`, sin barra
-  final). El error ahora incluye el origen rechazado para identificarlo.
-- Si usás dominios de **Preview** de Vercel, agregalos también o probá contra el
-  dominio de Production.
+- El origen de `PUBLIC_BASE_URL` se permite **automáticamente**, igual que las
+  URLs que Vercel inyecta en runtime (`VERCEL_PROJECT_PRODUCTION_URL`,
+  `VERCEL_BRANCH_URL`, `VERCEL_URL`), así que producción/branch/preview del mismo
+  proyecto funcionan sin configurar nada. Podés sumar otros en `CORS_ORIGINS`
+  (separados por coma, con `https://`, sin barra final). El error incluye el
+  origen rechazado para identificarlo.
 
 **`P1001: Can't reach database server`**
 - El contenedor no está arriba: `docker compose up -d db` y `docker compose ps` (debe decir `healthy`).

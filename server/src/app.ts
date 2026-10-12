@@ -22,11 +22,22 @@ import { adminRoutes } from "@/modules/admin/admin.routes";
  * a 500 "Origen no permitido por CORS" when only `PUBLIC_BASE_URL` is set.
  */
 const allowedOrigins = new Set<string>(env.CORS_ORIGINS);
-try {
-  allowedOrigins.add(new URL(env.PUBLIC_BASE_URL).origin);
-} catch {
-  // PUBLIC_BASE_URL is already validated as a URL by zod; defensive only.
-}
+const addOrigin = (value?: string) => {
+  if (!value) return;
+  try {
+    allowedOrigins.add(
+      new URL(value.includes("://") ? value : `https://${value}`).origin
+    );
+  } catch {
+    // Ignore malformed values; PUBLIC_BASE_URL is already validated by zod.
+  }
+};
+addOrigin(env.PUBLIC_BASE_URL);
+// Vercel injects these at runtime; allow the deployment's own URLs so a request
+// from the production, branch or preview domain is always same-origin-allowed.
+addOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+addOrigin(process.env.VERCEL_BRANCH_URL);
+addOrigin(process.env.VERCEL_URL);
 
 export function createApp() {
   const app = express();
