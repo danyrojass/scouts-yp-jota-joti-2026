@@ -27,14 +27,13 @@ async function main() {
     },
   });
 
-  const admin = await prisma.user.create({
-    data: {
-      username: process.env.ADMIN_USERNAME || "admin",
-      passwordHash: await hash(process.env.ADMIN_PASSWORD || "admin12345"),
-      role: "ADMIN",
-    },
+  const adminUsername = process.env.ADMIN_USERNAME || "admin";
+  const adminPasswordHash = await hash(process.env.ADMIN_PASSWORD || "admin12345");
+  await prisma.user.upsert({
+    where: { username: adminUsername },
+    update: { passwordHash: adminPasswordHash, active: true },
+    create: { username: adminUsername, passwordHash: adminPasswordHash, role: "ADMIN" },
   });
-  void admin;
 
   // Approximate demo coordinates around the Ypacaraí lake shore. They are only
   // illustrative placeholders; real coordinates are loaded by an admin.
@@ -104,40 +103,25 @@ async function main() {
     )
   );
 
-  // Teams and their routes. Routes order the SAME physical stations on purpose.
-  const teamsData = [
-    {
-      name: "Aguara",
-      username: "aguara",
-      password: "explora2026",
-      order: [0, 2, 1, 3, 4],
-    },
-    {
-      name: "Lobo",
-      username: "lobo",
-      password: "explora2026",
-      order: [1, 3, 0, 2, 4],
-    },
-    {
-      name: "Halcón",
-      username: "halcon",
-      password: "explora2026",
-      order: [2, 0, 4, 1, 3],
-    },
-  ];
+  // 10 equipos: usuario y nombre visible = "equipo1".."equipo10". Cada equipo
+  // recorre las MISMAS postas en un orden rotado, para que no compartan ruta.
+  const TEAM_COUNT = 10;
+  const TEAM_PASSWORD = process.env.TEAM_PASSWORD || "explora2026";
 
-  for (const t of teamsData) {
+  for (let i = 0; i < TEAM_COUNT; i++) {
+    const name = `equipo${i + 1}`;
     const team = await prisma.team.create({
       data: {
         eventId: event.id,
-        name: t.name,
-        username: t.username,
-        passwordHash: await hash(t.password),
+        name,
+        username: name,
+        passwordHash: await hash(TEAM_PASSWORD),
         active: true,
       },
     });
+    const order = stations.map((_, k) => (i + k) % stations.length);
     await prisma.routeStop.createMany({
-      data: t.order.map((idx, pos) => ({
+      data: order.map((idx, pos) => ({
         teamId: team.id,
         stationId: stations[idx].id,
         position: pos + 1,
@@ -150,8 +134,8 @@ async function main() {
 Seed completado.
 - Evento: ${event.name} (${event.status})
 - Postas: ${stations.length}
-- Equipos: aguara / lobo / halcon  (contrasena: explora2026)
-- Admin: ${process.env.ADMIN_USERNAME || "admin"} / ${process.env.ADMIN_PASSWORD || "admin12345"}
+- Equipos: equipo1..equipo${TEAM_COUNT}  (contrasena: ${TEAM_PASSWORD})
+- Admin: ${adminUsername}
 `);
 }
 
