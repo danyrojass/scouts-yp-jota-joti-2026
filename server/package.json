@@ -15,6 +15,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "assign-questions": "tsx prisma/assign-questions.ts",
+    "order-routes": "tsx prisma/order-routes.ts",
     "create-admin": "tsx src/scripts/create-admin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

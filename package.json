@@ -22,6 +22,7 @@
     "db:deploy": "npm --workspace server run db:deploy",
     "db:seed": "npm --workspace server run db:seed",
     "assign-questions": "npm --workspace server run assign-questions",
+    "order-routes": "npm --workspace server run order-routes",
     "create-admin": "npm --workspace server run create-admin"
   },
   "devDependencies": {

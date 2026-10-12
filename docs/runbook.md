@@ -22,6 +22,7 @@ Verificar: `curl http://localhost:4000/api/health`.
 | Aplicar migraciones (prod) | `npm run db:deploy` |
 | Re-sembrar demo | borrar el evento (`DELETE FROM "Event"`, cascade) y correr `npm run db:seed` → evento + 20 postas del recorrido urbano + equipos `equipo1`..`equipo10` (clave `explora2026`, override con `TEAM_PASSWORD`), cada equipo con **8 postas aleatorias** (override con `TEAM_STATION_COUNT`) y **2 preguntas bonus** (una de respuesta correcta y una libre). El admin se crea/actualiza por upsert |
 | Asignar preguntas bonus (sin borrar) | `npm run assign-questions` → reparte 2 preguntas aleatorias por equipo (una de respuesta correcta, una libre) en postas distintas, **sin tocar el resto de los datos**. Idempotente |
+| Reordenar rutas (sin borrar) | `npm run order-routes` → reordena las postas de cada equipo según el orden geográfico de `server/prisma/route.ts` (evita ir y volver). No cambia el subconjunto ni las preguntas. Idempotente |
 | Cargar coordenadas de postas | Evento → **Postas** → *Importar CSV* (`nombre,qr_id,latitud,longitud,descripcion`) o editando cada posta |
 | Configurar el safari | Evento → **Safari** (crear, items, orden, activo) |
 | Reiniciar progreso del safari | Evento → **Safari** → *Reiniciar* (por equipo o todos); queda auditado |
