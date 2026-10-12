@@ -68,6 +68,21 @@ Notas:
 
 ## Troubleshooting
 
+**`Invalid environment configuration` (runtime)**
+- La app valida el entorno con zod al arrancar (`server/src/config/env.ts`) y
+  **loguea cada variable inválida con el motivo** (p. ej.
+  `PUBLIC_BASE_URL: Invalid url`, `SESSION_SECRET: ... at least 32 chars`).
+  El array `[…]{…}` que muestra Vercel es el log truncado: mirá la línea
+  `Invalid environment configuration:` completa.
+- Causas típicas al pegar un `.env` en el Dashboard: valores con comillas
+  (`"https://…"`), espacios o `\n` al final, o un `# comentario` en la misma
+  línea. El parser recorta comillas y espacios sobrantes, pero igual verificá
+  que `PUBLIC_BASE_URL` incluya `https://` y que `SESSION_SECRET` tenga ≥32
+  caracteres.
+- Confirmá que las variables estén cargadas en el entorno **Production** (no
+  solo Development/Preview) y hacé **Redeploy**: los cambios de env no se
+  aplican a deploys ya hechos.
+
 **`P1001: Can't reach database server`**
 - El contenedor no está arriba: `docker compose up -d db` y `docker compose ps` (debe decir `healthy`).
 - Conflicto de puerto: si ya hay un PostgreSQL local en 5432, este proyecto usa **5433** en el host. Verificá que `DATABASE_URL` use `127.0.0.1:5433`.
