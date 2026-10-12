@@ -57,14 +57,16 @@ export default function App() {
       <Route path="/admin" element={<AdminShelter />}>
         <Route index element={<AdminHome />} />
         <Route path="eventos" element={<EventsPage />} />
-        <Route path="eventos/:eventId" element={<EventDetailPage />} />
-        <Route path="eventos/:eventId/pizarra" element={<DashboardPage />} />
-        <Route path="eventos/:eventId/equipos" element={<TeamsPage />} />
-        <Route path="eventos/:eventId/postas" element={<StationsPage />} />
-        <Route path="eventos/:eventId/itinerarios" element={<ItinerariesPage />} />
-        <Route path="eventos/:eventId/safari" element={<SafariAdminPage />} />
-        <Route path="eventos/:eventId/impresion" element={<PrintQrsPage />} />
-        <Route path="eventos/:eventId/resultados" element={<ResultsPage />} />
+        <Route path="eventos/:eventId" element={<EventDetailPage />}>
+          <Route index element={<Navigate to="pizarra" replace />} />
+          <Route path="pizarra" element={<DashboardPage />} />
+          <Route path="equipos" element={<TeamsPage />} />
+          <Route path="postas" element={<StationsPage />} />
+          <Route path="itinerarios" element={<ItinerariesPage />} />
+          <Route path="safari" element={<SafariAdminPage />} />
+          <Route path="impresion" element={<PrintQrsPage />} />
+          <Route path="resultados" element={<ResultsPage />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
