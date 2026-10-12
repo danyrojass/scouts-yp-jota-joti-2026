@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { randomQuestion } from "./questions";
 
 const prisma = new PrismaClient();
 
@@ -116,6 +117,15 @@ async function main() {
         stationId: s.id,
         position: pos + 1,
       })),
+    });
+
+    // Desafio bonus: una pregunta aleatoria en una de las postas del equipo.
+    const stops = await prisma.routeStop.findMany({ where: { teamId: team.id } });
+    const chosen = stops[Math.floor(Math.random() * stops.length)];
+    const question = randomQuestion();
+    await prisma.routeStop.update({
+      where: { id: chosen.id },
+      data: { question: question.text, questionAnswer: question.answer ?? null },
     });
   }
 

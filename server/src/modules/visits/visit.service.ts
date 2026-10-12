@@ -44,18 +44,40 @@ const EVENT_CHECK: Record<string, StationChallengeStatus> = {
   CANCELLED: "EVENT_CANCELLED",
 };
 
-function publicStation(
-  station: { id: string; name: string; description: string | null; instructions: string | null; displayedCode: string | null; challengeType: ChallengeType; autoAcceptAny: boolean },
-  includeDisplayed: boolean
+type RouteStopOverride = {
+  question: string | null;
+  questionAnswer: string | null;
+} | null;
+
+/**
+ * Resolves the effective challenge for a team at a given stop. If the team's
+ * itinerary carries a bonus question for that stop, it overrides the station's
+ * default challenge (lets each team get its own question at a shared station).
+ */
+function resolveChallenge(
+  stop: RouteStopOverride,
+  station: {
+    challengeType: ChallengeType;
+    instructions: string | null;
+    expectedAnswer: string | null;
+    autoAcceptAny: boolean;
+  }
 ) {
+  const question = stop?.question?.trim();
+  if (question) {
+    const answer = stop?.questionAnswer?.trim() || null;
+    return {
+      challengeType: (answer ? "QUESTION" : "AUTO") as ChallengeType,
+      instructions: question,
+      expectedAnswer: answer,
+      autoAcceptAny: !answer,
+    };
+  }
   return {
-    id: station.id,
-    name: station.name,
-    description: station.description,
-    instructions: station.instructions,
     challengeType: station.challengeType,
+    instructions: station.instructions,
+    expectedAnswer: station.expectedAnswer,
     autoAcceptAny: station.autoAcceptAny,
-    displayedCode: includeDisplayed ? station.displayedCode : null,
   };
 }
 
@@ -69,7 +91,7 @@ export async function resolveStationChallenge(publicToken: string, teamId: strin
   const station = await prisma.station.findUnique({
     where: { publicToken },
     include: {
-      routeStops: { where: { teamId }, select: { position: true } },
+      routeStops: { where: { teamId }, select: { position: true, question: true, questionAnswer: true } },
     },
   });
 
@@ -98,9 +120,19 @@ export async function resolveStationChallenge(publicToken: string, teamId: strin
     return { status: "NOT_YOUR_NEXT" as StationChallengeStatus };
   }
 
+  const stop = station.routeStops[0] ?? null;
+  const eff = resolveChallenge(stop, station);
   return {
     status: "NEXT" as StationChallengeStatus,
-    station: publicStation(station, true),
+    station: {
+      id: station.id,
+      name: station.name,
+      description: station.description,
+      instructions: eff.instructions,
+      challengeType: eff.challengeType,
+      autoAcceptAny: eff.autoAcceptAny,
+      displayedCode: eff.challengeType === "CODE" ? station.displayedCode : null,
+    },
   };
 }
 
@@ -119,7 +151,8 @@ function evaluateAnswer(
   if (!expectedAnswer) {
     return { isCorrect: false };
   }
-  return { isCorrect: normalize(answer) === normalize(expectedAnswer) };
+  const accepted = expectedAnswer.split("|").map(normalize);
+  return { isCorrect: accepted.includes(normalize(answer)) };
 }
 
 export type RegisterResult =
@@ -228,15 +261,17 @@ export async function registerVisit(
         return { result: "ALREADY_COMPLETED" as const, message: messageFor("ALREADY_COMPLETED") };
       }
 
-      const position = station.routeStops[0]?.position ?? null;
+      const stop = station.routeStops[0] ?? null;
+      const position = stop?.position ?? null;
       if (position === null || position !== completedSet.size + 1) {
         return { result: "NOT_YOUR_NEXT" as const, message: messageFor("NOT_YOUR_NEXT") };
       }
 
+      const eff = resolveChallenge(stop, station);
       const { isCorrect } = evaluateAnswer(
-        station.challengeType,
-        station.autoAcceptAny,
-        station.expectedAnswer,
+        eff.challengeType,
+        eff.autoAcceptAny,
+        eff.expectedAnswer,
         answer
       );
 
@@ -344,7 +379,7 @@ export async function teamPassport(teamId: string) {
         position: stop.position,
         stationId: stop.station.id,
         name: stop.station.name,
-        challengeType: stop.station.challengeType,
+        challengeType: resolveChallenge(stop, stop.station).challengeType,
         completed: Boolean(valid),
         completedAt: valid?.visitedAt.toISOString() ?? null,
         lastAttemptAt: lastAttempt?.visitedAt.toISOString() ?? null,

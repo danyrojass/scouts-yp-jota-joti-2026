@@ -37,6 +37,8 @@ Base URL: `/api/v1`. En desarrollo, el cliente (5173) proxya `/api` hacia el ser
 
 Cuando es `NEXT`, `station` incluye `{ id, name, instructions, challengeType, autoAcceptAny, displayedCode }` — nunca `expectedAnswer`.
 
+Si el **itinerario del equipo** tiene una *pregunta bonus* en esa posta (`RouteStop.question`), el desafío de la posta se reemplaza: `challengeType` pasa a `QUESTION` (hay respuesta válida) o `AUTO` (vale cualquier respuesta) e `instructions` trae la pregunta. Permite que dos equipos tengan preguntas distintas en la misma posta física.
+
 ### Resultado de `POST /visits`
 
 ```jsonc

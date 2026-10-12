@@ -122,6 +122,13 @@ model RouteStop {
   teamId    String
   stationId String
   position  Int
+  // Optional per-team "bonus question": when set, THIS team answers it at this
+  // stop instead of the station's default challenge. Lets each team get its own
+  // randomly assigned question even at a shared physical station.
+  // questionAnswer is a "|"-separated list of accepted answers; NULL = any
+  // non-empty answer is accepted.
+  question       String?
+  questionAnswer String?
 
   team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
   station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)

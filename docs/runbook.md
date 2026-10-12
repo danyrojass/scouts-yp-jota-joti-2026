@@ -20,7 +20,8 @@ Verificar: `curl http://localhost:4000/api/health`.
 | Crear/actualizar admin | `npm run create-admin` |
 | Aplicar migraciones (dev) | `npm run db:migrate` |
 | Aplicar migraciones (prod) | `npm run db:deploy` |
-| Re-sembrar demo | borrar el evento (`DELETE FROM "Event"`, cascade) y correr `npm run db:seed` → evento + 20 postas del recorrido urbano + equipos `equipo1`..`equipo10` (clave `explora2026`, override con `TEAM_PASSWORD`), cada equipo con **8 postas aleatorias** (override con `TEAM_STATION_COUNT`). El admin se crea/actualiza por upsert |
+| Re-sembrar demo | borrar el evento (`DELETE FROM "Event"`, cascade) y correr `npm run db:seed` → evento + 20 postas del recorrido urbano + equipos `equipo1`..`equipo10` (clave `explora2026`, override con `TEAM_PASSWORD`), cada equipo con **8 postas aleatorias** (override con `TEAM_STATION_COUNT`) y **1 pregunta bonus aleatoria**. El admin se crea/actualiza por upsert |
+| Asignar preguntas bonus (sin borrar) | `npm run assign-questions` → reparte 1 pregunta aleatoria por equipo en una de sus postas, **sin tocar el resto de los datos**. Idempotente |
 | Cargar coordenadas de postas | Evento → **Postas** → *Importar CSV* (`nombre,qr_id,latitud,longitud,descripcion`) o editando cada posta |
 | Configurar el safari | Evento → **Safari** (crear, items, orden, activo) |
 | Reiniciar progreso del safari | Evento → **Safari** → *Reiniciar* (por equipo o todos); queda auditado |

@@ -21,6 +21,7 @@
     "db:migrate": "npm --workspace server run db:migrate",
     "db:deploy": "npm --workspace server run db:deploy",
     "db:seed": "npm --workspace server run db:seed",
+    "assign-questions": "npm --workspace server run assign-questions",
     "create-admin": "npm --workspace server run create-admin"
   },
   "devDependencies": {
