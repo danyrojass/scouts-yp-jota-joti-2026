@@ -42,7 +42,7 @@ Definidas en `server/.env` (ver `.env.example`). Claves:
 ## Despliegue en Vercel (SPA + API en un solo proyecto)
 
 1. Provisioná PostgreSQL gestionado (Neon/Supabase/Vercel Postgres) y usá la cadena **pooled** con `sslmode=require`.
-2. Definí en Vercel (Settings → Environment Variables): `NODE_ENV=production`, `DATABASE_URL`, `SESSION_SECRET` (≥32), `COOKIE_SECURE=true`, `COOKIE_SAMESITE=lax`, `TRUST_PROXY=1`, `PUBLIC_BASE_URL=https://<proyecto>.vercel.app`, `CORS_ORIGINS=https://<proyecto>.vercel.app`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.
+2. Definí en Vercel (Settings → Environment Variables): `NODE_ENV=production`, `DATABASE_URL`, `SESSION_SECRET` (≥32), `COOKIE_SECURE=true`, `COOKIE_SAMESITE=lax`, `TRUST_PROXY=1`, `PUBLIC_BASE_URL=https://<proyecto>.vercel.app`, `CORS_ORIGINS=https://<proyecto>.vercel.app`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`. Podés cargarlas todas juntas con **Paste .env** del Dashboard.
 3. Aplicá el esquema y creá el admin desde tu equipo, apuntando a la base remota:
    ```powershell
    $env:DATABASE_URL="postgresql://...?sslmode=require"; npm run db:deploy
