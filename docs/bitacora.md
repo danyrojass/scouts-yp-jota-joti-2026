@@ -170,3 +170,53 @@ Commits:
 
 Commit:
 - `3415b42` feat(safari): checklist oficial JOTA JOTI 2026 con categorias, tipos y evidencia fotografica
+
+## Estado: listo vs pendiente (2026-10-12)
+
+### Listo y verificado en deploy ✅
+- **Plataforma desplegada** en Vercel (SPA + API same-origin, cookie `ypacarai.sid`), `/api/health` OK, login admin y de equipo OK.
+- **Evento** "JOTA-JOTI Ypacaraí 2026" con datos reales (estado `PREPARED`).
+- **20 postas** con coordenadas GPS cargadas, ordenadas según el recorrido canónico `server/prisma/route.ts`; lista numerada con links de Google Maps para ubicarlas físicamente (ver sección adjunta).
+- **Equipos**: `equipo1`..`equipo10`, cada uno con **8 postas aleatorias pero ordenadas geográficamente** (sin idas y vueltas) y **2 preguntas bonus** (1 de respuesta correcta + 1 libre) en postas distintas.
+- **Vista admin de itinerarios**: por equipo, postas en orden e indicación de la pregunta de cada una (con la respuesta esperada para las calificadas); `GET /events/:id` expone `question`/`questionAnswer`.
+- **Escáner** funcionando en celulares (fix `facingMode` en vez de `deviceId`).
+- **Safari JOTA JOTI 2026**: migración aditiva aplicada a Neon, seed oficial de **24 elementos** (idempotente, no borra), progreso por equipo persistido, ítems con tipo (`PHOTO`/`OBJECT`/`NUMERIC`/`COLLECTION`) y `requiresPhoto`, evidencia fotográfica declarada (sin subir archivos), sección de seguridad, grupo oficial de WhatsApp con enlace exacto al final del checklist, panel admin con CRUD + categorías + reset con confirmación.
+- **Docs sincronizadas**: api-reference, runbook y bitácora.
+
+### Faltaría / pendientes ⏳
+Seguridad (recomendado antes del evento real):
+- **Rotar la contraseña del rol de Neon** (las credenciales se pegaron en el chat), actualizar `DATABASE_URL` (pooled) en Vercel y **Redeploy**.
+- Cambiar la contraseña del **admin** (`npm run create-admin`) y de los equipos antes del evento.
+- Borrar o reemplazar los **datos demo** del evento por los reales; los equipos ya pueden renombrarse desde su pasaporte (`PATCH /api/v1/passport/profile`).
+
+Operativos:
+- **Ubicar físicamente las 20 postas** usando los links de Google Maps (sección adjunta) y, si la realidad del terreno difiere, actualizar las coordenadas desde Evento → Postas (editar o Importar CSV). Nota: el reordenado de rutas empareja por coordenadas, así que al editar lat/long conviene mantener la zona de cada posta.
+- El día del evento pasar el estado a **`IN_PROGRESS`** para habilitar el escaneo de postas y el registro de avances del safari (hoy `PREPARED`: todo se ve pero los writes devuelven `409`).
+- **Prueba de escritura en vivo** del safari (marcar/desmarcar ítem, valor numérico del aro de básquetbol, botón de foto) cuando el evento esté `IN_PROGRESS`; el path está cubierto por `server/tests/safari.test.ts`, no ejecutable en local (Postgres/Docker apagados).
+- Revisar el **CSV de resultados** y el **panel de métricas** con datos reales el día del evento.
+
+### Mapa de postas (orden canónico 1→20)
+| # | Posta | Link |
+|---|---|---|
+| 1 | Ruta PY02 1 | https://www.google.com/maps/search/?api=1&query=-25.420197,-57.293242 |
+| 2 | Ruta PY02 2 | https://www.google.com/maps/search/?api=1&query=-25.417156,-57.294599 |
+| 3 | Ruta PY02 3 | https://www.google.com/maps/search/?api=1&query=-25.413393,-57.292263 |
+| 4 | Ruta PY02 4 | https://www.google.com/maps/search/?api=1&query=-25.411967,-57.291379 |
+| 5 | Ruta PY02 5 | https://www.google.com/maps/search/?api=1&query=-25.410773,-57.290028 |
+| 6 | Pizzaldo 1 | https://www.google.com/maps/search/?api=1&query=-25.409472,-57.290353 |
+| 7 | Pizzaldo 2 | https://www.google.com/maps/search/?api=1&query=-25.409198,-57.290411 |
+| 8 | Supermercado 1 | https://www.google.com/maps/search/?api=1&query=-25.407638,-57.290223 |
+| 9 | Centro 1 | https://www.google.com/maps/search/?api=1&query=-25.406177,-57.288258 |
+| 10 | Cancha 1 | https://www.google.com/maps/search/?api=1&query=-25.405990,-57.286450 |
+| 11 | Ferrocarril 1 | https://www.google.com/maps/search/?api=1&query=-25.404784,-57.286952 |
+| 12 | Ferrocarril 2 | https://www.google.com/maps/search/?api=1&query=-25.404420,-57.286615 |
+| 13 | Ferrocarril 3 | https://www.google.com/maps/search/?api=1&query=-25.403518,-57.287001 |
+| 14 | Ferrocarril 4 | https://www.google.com/maps/search/?api=1&query=-25.403429,-57.287399 |
+| 15 | Ferrocarril 5 | https://www.google.com/maps/search/?api=1&query=-25.403238,-57.287370 |
+| 16 | Ferrocarril 6 | https://www.google.com/maps/search/?api=1&query=-25.403064,-57.286974 |
+| 17 | Ferrocarril 7 | https://www.google.com/maps/search/?api=1&query=-25.402682,-57.286900 |
+| 18 | Ferrocarril 8 | https://www.google.com/maps/search/?api=1&query=-25.402609,-57.286531 |
+| 19 | Ferrocarril 9 | https://www.google.com/maps/search/?api=1&query=-25.403220,-57.286408 |
+| 20 | Ferrocarril 10 | https://www.google.com/maps/search/?api=1&query=-25.402460,-57.286900 |
+
+Nota: los nombres `Pizzaldo` y `Cancha` del panel difieren de los nombres canónicos en `route.ts` (`Copetrol`, `Cooperativa`); el reordenado de rutas empareja por **coordenadas**, así que no hace falta alinear los nombres.
