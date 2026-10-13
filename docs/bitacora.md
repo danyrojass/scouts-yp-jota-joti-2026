@@ -1,7 +1,7 @@
 # Bitácora de deploy — Vercel
 
 Registro de avance del despliegue de **Exploración de Ypacaraí** en Vercel.
-Última actualización: **2026-10-12**.
+Última actualización: **2026-10-13**.
 
 ## Estado actual
 
@@ -220,3 +220,18 @@ Operativos:
 | 20 | Ferrocarril 10 | https://www.google.com/maps/search/?api=1&query=-25.402460,-57.286900 |
 
 Nota: los nombres `Pizzaldo` y `Cancha` del panel difieren de los nombres canónicos en `route.ts` (`Copetrol`, `Cooperativa`); el reordenado de rutas empareja por **coordenadas**, así que no hace falta alinear los nombres.
+
+## Funcionalidad: puntuaciones y ranking general (2026-10-13)
+
+- **Actividades configurables** por evento (`Activity`) con nombre único por evento, `position`, `maxScore` opcional, `status` (`PENDING`/`IN_EVALUATION`/`FINISHED`), `scoringMethod` (`MANUAL`/`CHECKLIST`/`STATIONS`), `published` (visible al público) y `allowMaxScoreExceeded`.
+- **Carga de puntajes**: un puntaje vigente por equipo/actividad (`TeamActivityScore @@unique([teamId, activityId])`) con upsert (no duplica), observaciones privadas y `evaluated`/`evaluatedAt`/`evaluatedBy`. El servidor valida no-negatividad y el tope `maxScore`.
+- **Sin evaluar ≠ 0**: `evaluated=false` ⇒ `score=null`; el total suma solo lo evaluado.
+- **Ranking general** con desempate de competición **"1224"** (mismo total ⇒ misma posición; la siguiente refleja el orden competitivo). Equipos inactivos se marcan `INACTIVO`.
+- **Vista pública** (`/ranking` y `/ranking/:eventId`) gated por `Event.rankingPublished`; en público solo cuentan actividades `published=true` y **nunca** se exponen observaciones. Panel admin para publicar/ocultar y exportar CSV.
+- **Seed idempotente** `npm run seed-activities` con las 8 actividades: Safari de Exploración (`CHECKLIST`), JOTA-JOTI Ypacaraí 2026 (`STATIONS`), Conectando con el mundo, Maestros del código, Hermandad scout, Equipo inclusivo, Embajadores de Paraguay y Guardianes del planeta (todas `MANUAL`). Empareja por nombre o posición; no borra ni pisa `active`/`published`.
+- **Migración aditiva** `20261013000000_activities_and_scores` (nuevas tablas/enums + `Event.rankingPublished`/`rankingPublishedAt`). No resetea datos.
+- **Rebranding**: el nombre visible de la app pasa de "Exploración de Ypacaraí" a **"JOTA-JOTI 2026 Ypacaraí"** (título del documento, login, wordmark y encabezado del panel). El nombre del evento y las actividades no cambian.
+- **UI**: nuevo tab admin **Actividades** (`/admin/eventos/:eventId/actividades`) y **Ranking** (`/admin/eventos/:eventId/ranking`), y acceso **Ranking** en la navegación del equipo (oculto hasta publicar, muestra "clasificación no disponible").
+- **Tests**: `server/tests/scoring.test.ts` (30 casos: seguridad, CRUD, validaciones, upsert, sin evaluar ≠ 0, total, empates 1224, aislamiento, publicación, CSV y auditoría). Suite completa: **74 server + 4 client** en verde; `npm run typecheck` OK.
+- **Verificado local** con PostgreSQL/Docker (`docker compose up -d db`): migración aplicada a `ypacarai_test` y a la base de dev.
+- Pendiente: aplicar `npm run db:deploy` y `npm run seed-activities` a Neon antes del evento; probar el flujo de puntaje/publicación en vivo.

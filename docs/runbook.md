@@ -27,6 +27,9 @@ Verificar: `curl http://localhost:4000/api/health`.
 | Cargar el checklist oficial del safari (sin borrar) | `npm run seed-safari` → crea el safari con título y descripción oficiales y los **24 elementos** de la checklist JOTA JOTI 2026 agrupados por categoría (signos, naturaleza, objetos, fotos) con su tipo (`PHOTO`/`OBJECT`/`NUMERIC`/`COLLECTION`) y `requiresPhoto`. **No borra nada**: crea los faltantes, actualiza metadatos de los existentes y respeta `active`. Idempotente. Después podés editar/desactivar desde el panel admin |
 | Configurar el safari | Evento → **Safari** (crear, items, categoría, tipo, requiere foto, orden, activo) |
 | Reiniciar progreso del safari | Evento → **Safari** → *Reiniciar* (por equipo o todos); queda auditado |
+| Cargar actividades del ranking (sin borrar) | `npm run seed-activities` → crea las 8 actividades del evento (Safari de Exploración, JOTA-JOTI Ypacaraí 2026, Conectando con el mundo, Maestros del código, Hermandad scout, Equipo inclusivo, Embajadores de Paraguay, Guardianes del planeta) **sin borrar nada**; empareja por nombre o posición y respeta `active`/`published`. Idempotente |
+| Puntuar actividades | Evento → **Actividades** (crear/editar/reordenar, matriz equipos × actividades, cargar puntajes y observaciones) |
+| Ver/publicar el ranking | Evento → **Ranking** (publicar/ocultar, detalle por equipo, export CSV). La vista pública es `/ranking/:eventId` |
 | Correr tests | `npm test` |
 | Compilar todo | `npm run build` |
 | Arrancar la API compilada | `node server/dist/index.js` |

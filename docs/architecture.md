@@ -2,7 +2,7 @@
 
 ## Visión general
 
-Aplicación web para una carrera de orientación por postas con código QR. Cada equipo tiene un **itinerario** (orden de postas) y un **pasaporte digital**. En cada posta escanea un QR, resuelve un desafío y el **servidor** valida y registra el avance. La administración configura el evento, los equipos, las postas y los itinerarios, y sigue el progreso en vivo. Además hay un **Safari de Exploración** (checklist colaborativo por equipo) y un **mapa** del itinerario (Leaflet + OpenStreetMap con coordenadas por posta).
+Aplicación web para una carrera de orientación por postas con código QR. Cada equipo tiene un **itinerario** (orden de postas) y un **pasaporte digital**. En cada posta escanea un QR, resuelve un desafío y el **servidor** valida y registra el avance. La administración configura el evento, los equipos, las postas y los itinerarios, y sigue el progreso en vivo. Además hay un **Safari de Exploración** (checklist colaborativo por equipo), un **mapa** del itinerario (Leaflet + OpenStreetMap con coordenadas por posta) y un **módulo de puntuaciones y ranking general** (actividades configurables, carga de puntajes por equipo, ranking admin/público con publicación explícita).
 
 ```
 ┌──────────────┐        HTTPS (cookies HTTP-only)        ┌───────────────┐
@@ -16,7 +16,7 @@ Aplicación web para una carrera de orientación por postas con código QR. Cada
                                                         └───────────────┘
 ```
 
-- **Cliente** (`client/`): React 18 + Vite + TypeScript + Tailwind. Mobile-first. Vistas de equipo (pasaporte, itinerario con mapa, escaneo, safari, posta) y de admin (eventos, equipos, postas, itinerarios, safari, QR imprimibles, resultados).
+- **Cliente** (`client/`): React 18 + Vite + TypeScript + Tailwind. Mobile-first. Vistas de equipo (pasaporte, itinerario con mapa, escaneo, safari, posta, ranking público) y de admin (eventos, equipos, postas, itinerarios, safari, actividades, ranking, QR imprimibles, resultados).
 - **API** (`server/`): Express + TypeScript. Autenticación por sesión (cookies HTTP-only) y autorización por rol. Toda la lógica de negocio y validación vive aquí.
 - **Datos**: PostgreSQL vía Prisma ORM.
 
@@ -42,6 +42,19 @@ Event 1─1 Safari 1─* SafariItem
 Safari 1─* SafariFind *─1 Team
   id, safariId,            (@unique [itemId, teamId])
   itemId, teamId, eventId, foundAt
+```
+
+```
+Event 1─* Activity 1─* TeamActivityScore *─1 Team
+  id, eventId,          id, teamId,
+  name, position,       activityId, eventId,
+  maxScore, status,     score, evaluated,       (@unique [teamId, activityId])
+  scoringMethod,        observations,
+  published, active,    evaluatedBy, evaluatedAt
+  allowMaxScoreExceeded
+
+Event (extra): rankingPublished Boolean @default(false)
+               rankingPublishedAt DateTime?
 ```
 
 Restricción clave: `StationVisit.validKey String? @unique`. Solo se setea cuando la visita es `VALID`, con el valor `"{teamId}:{stationId}"`. Como PostgreSQL permite múltiples `NULL` en una columna `UNIQUE`, esto garantiza **a lo sumo una visita válida por equipo y posta**, incluso con peticiones concurrentes.
@@ -91,6 +104,14 @@ PREPARED ──start──▶ IN_PROGRESS ──finish──▶ FINISHED
 - El equipo solo puede marcar/desmarcar con el evento `IN_PROGRESS`; un elemento de otro evento responde `403` y fuera de estado `409`.
 - El admin administra el safari (items, orden, activo) y ve el progreso por equipo (`GET /admin/safari/:id/progress`), con la posibilidad de reiniciar el progreso de un equipo o de todos (se audita como `RESET`).
 
+### Puntuaciones y ranking general
+- Las **actividades** son configurables por evento (`Activity`): nombre único por evento, `position` para ordenar, `maxScore` opcional, `status` (`PENDING`/`IN_EVALUATION`/`FINISHED`), `scoringMethod` (`MANUAL`/`CHECKLIST`/`STATIONS`), `published` (visible en la vista pública) y `allowMaxScoreExceeded` (permite superar el tope).
+- El puntaje vigente de un equipo en una actividad es único (`TeamActivityScore @@unique([teamId, activityId])`). El admin hace **upsert** (crear o actualizar en el lugar, nunca duplica).
+- **Sin evaluar ≠ 0**: `evaluated=false` guarda `score=null`. El total del ranking suma solo actividades evaluadas; las pendientes no cuentan como cero. `maxScore` se valida en el servidor (puntajes no negativos; superar el tope solo con `allowMaxScoreExceeded`).
+- **Ranking de competición "1224"**: los equipos con el mismo total comparten posición y la siguiente refleja el orden competitivo (`1 + nº de equipos con total estrictamente mayor`). No hay criterios secundarios de desempate (el orden alfabético es solo estable para la presentación).
+- **Vista pública** gated por `Event.rankingPublished` (se publica/oculta explícitamente desde el panel; se registra `rankingPublishedAt`). La vista pública (`publicOnly`) considera solo actividades con `published=true` y **nunca** expone observaciones ni datos de auditoría.
+- Exportación CSV (`GET /admin/scoring/export`) con posición, total, evaluadas y una columna por actividad. Las operaciones se auditan (`Activity`, `TeamActivityScore`, `RANKING_PUBLISHED`/`RANKING_UNPUBLISHED`).
+
 ### Coordenadas y mapa
 - `Station.latitude` / `Station.longitude` (`Float?`) alimentan el mapa; **solo el admin** las gestiona (formulario de posta o importación CSV masiva `POST /stations/import`).
 - La importación es **idempotente y no crea postas**: empareja por nombre, `publicToken` o `displayedCode` y reporta errores por fila.
@@ -130,6 +151,7 @@ server/src/
 │  ├─ visits/               # resolución de posta y registro de visitas
 │  ├─ passport/             # pasaporte del equipo (con coords + mapsUrl)
 │  ├─ safari/               # safari de exploración (equipo + admin/progreso)
+│  ├─ scoring/              # actividades, puntajes, ranking (admin + público) y CSV
 │  ├─ admin/                # dashboard, resultados CSV, auditoría
 │  └─ progress/             # cálculo de progreso (compartido)
 ├─ app.ts                   # composición de la app Express

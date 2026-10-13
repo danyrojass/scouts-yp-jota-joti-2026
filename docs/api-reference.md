@@ -118,6 +118,39 @@ El CSV tiene columnas `nombre, qr_id, latitud, longitud, descripcion` (el encabe
 | POST | `/admin/safari/:id/reorder` | Reordena. Body `{ itemIds: string[] }`. |
 | POST | `/admin/safari/reset` | Borra progreso. Body `{ eventId, teamId? }` (sin `teamId` = todos) → `{ deleted }`. Se audita. |
 
+## Actividades y puntuaciones (rol `admin`)
+
+Base `/admin/scoring`. Todas las mutaciones requieren `x-csrf-token`.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/admin/scoring/activities?eventId=` | `{ activities }` ordenadas por `position`. |
+| POST | `/admin/scoring/activities` | Crea actividad. Body `{ eventId, name, description?, maxScore?, position?, status?, scoringMethod?, published?, allowMaxScoreExceeded?, active? }` → 201 `{ activity }`. `name` es único por evento (`409`). |
+| PATCH | `/admin/scoring/activities/reorder` | Reordena. Body `{ eventId, activityIds }` (debe incluir todas, sin repetir) → `{ activities }`. |
+| PATCH | `/admin/scoring/activities/:id` | Actualiza campos parciales → `{ activity }`. |
+| DELETE | `/admin/scoring/activities/:id` | Elimina la actividad y sus puntajes (cascade) → 204. |
+| GET | `/admin/scoring/scores?eventId=` | Matriz: `{ event, activities, teams, scores }`. |
+| PUT | `/admin/scoring/scores` | Upsert del puntaje. Body `{ eventId, teamId, activityId, evaluated, score?, observations? }` → `{ score, created }`. `evaluated:false` guarda `score=null`. Puntaje negativo o mayor a `maxScore` (sin `allowMaxScoreExceeded`) → 400. |
+| DELETE | `/admin/scoring/scores/:id` | Borra el puntaje → 204. |
+| GET | `/admin/scoring/ranking?eventId=` | Ranking completo (incluye actividades no publicadas) con posiciones y estado por equipo. |
+| GET | `/admin/scoring/teams/:teamId?eventId=` | Detalle por equipo (una fila por actividad, **con** observaciones). |
+| POST | `/admin/scoring/ranking/publish` | Body `{ eventId, published }` → `{ event: { id, rankingPublished, rankingPublishedAt } }`. Se audita. |
+| GET | `/admin/scoring/export?eventId=` | CSV (`text/csv`, con BOM): posición, equipo, total, evaluadas y una columna por actividad. |
+
+`status`: `PENDING` \| `IN_EVALUATION` \| `FINISHED`. `scoringMethod`: `MANUAL` \| `CHECKLIST` \| `STATIONS`.
+
+Reglas: el total suma solo actividades evaluadas (pendiente ≠ 0); empates con ranking "1224" (misma posición para igual total); equipos inactivos se marcan `INACTIVO`.
+
+## Ranking (público)
+
+Sin sesión. Base `/ranking`. Solo expone datos si el evento tiene `rankingPublished=true` y filtra a actividades con `published=true`. Nunca incluye observaciones.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/ranking` | `{ published, event, activities, activitiesCount, allComplete, teams }` del evento publicado más reciente, o `?eventId=` para uno puntual. Si el evento no está publicado → `published:false` con listas vacías. |
+| GET | `/ranking/:eventId` | Igual que el anterior, para un evento específico. |
+| GET | `/ranking/:eventId/teams/:teamId` | Detalle público de un equipo (sin observaciones). `404` si el evento no está publicado. |
+
 ## Health
 
 | Método | Ruta | Descripción |
