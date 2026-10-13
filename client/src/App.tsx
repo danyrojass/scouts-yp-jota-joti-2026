@@ -17,8 +17,11 @@ import { TeamsPage } from "@/pages/admin/TeamsPage";
 import { StationsPage } from "@/pages/admin/StationsPage";
 import { ItinerariesPage } from "@/pages/admin/ItinerariesPage";
 import { SafariAdminPage } from "@/pages/admin/SafariPage";
+import { ScoringAdminPage } from "@/pages/admin/ScoringPage";
+import { AdminRankingPage } from "@/pages/admin/RankingPage";
 import { PrintQrsPage } from "@/pages/admin/PrintQrsPage";
 import { ResultsPage } from "@/pages/admin/ResultsPage";
+import { PublicRankingPage } from "@/pages/PublicRankingPage";
 
 // El escáner de QR (librería @zxing) se carga solo al abrir esta pantalla.
 const ScanPage = lazy(() =>
@@ -38,6 +41,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/ranking" element={<PublicRankingPage />} />
+      <Route path="/ranking/:eventId" element={<PublicRankingPage />} />
 
       <Route element={<TeamShelter />}>
         <Route path="/pasaporte" element={<PassportPage />} />
@@ -64,6 +69,8 @@ export default function App() {
           <Route path="postas" element={<StationsPage />} />
           <Route path="itinerarios" element={<ItinerariesPage />} />
           <Route path="safari" element={<SafariAdminPage />} />
+          <Route path="actividades" element={<ScoringAdminPage />} />
+          <Route path="ranking" element={<AdminRankingPage />} />
           <Route path="impresion" element={<PrintQrsPage />} />
           <Route path="resultados" element={<ResultsPage />} />
         </Route>

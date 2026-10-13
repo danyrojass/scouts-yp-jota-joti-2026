@@ -258,6 +258,121 @@ export type AuditLogEntry = {
   team: { name: string } | null;
 };
 
+export type ActivityStatus = "PENDING" | "IN_EVALUATION" | "FINISHED";
+export type ScoringMethod = "MANUAL" | "CHECKLIST" | "STATIONS";
+
+export type ActivityItem = {
+  id: string;
+  eventId: string;
+  name: string;
+  description: string | null;
+  maxScore: number | null;
+  position: number;
+  status: ActivityStatus;
+  scoringMethod: ScoringMethod;
+  published: boolean;
+  allowMaxScoreExceeded: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TeamActivityScoreItem = {
+  id: string;
+  eventId: string;
+  teamId: string;
+  activityId: string;
+  score: number | null;
+  evaluated: boolean;
+  observations: string | null;
+  evaluatedBy: string | null;
+  evaluatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ScoreMatrix = {
+  event: { id: string; name: string; status: EventStatus; rankingPublished: boolean };
+  activities: ActivityItem[];
+  teams: { id: string; name: string; username: string; active: boolean }[];
+  scores: TeamActivityScoreItem[];
+};
+
+export type RankingTeamRow = {
+  teamId: string;
+  team: string;
+  active: boolean;
+  total: number;
+  evaluatedCount: number;
+  pendingCount: number;
+  activitiesCount: number;
+  percent: number;
+  complete: boolean;
+  position: number;
+  status: "PENDIENTE" | "EN_EVALUACION" | "COMPLETO" | "INACTIVO";
+};
+
+export type RankingActivity = {
+  id: string;
+  name: string;
+  position: number;
+  maxScore: number | null;
+  status: ActivityStatus;
+  scoringMethod: ScoringMethod;
+  published: boolean;
+};
+
+export type Ranking = {
+  event: {
+    id: string;
+    name: string;
+    status: EventStatus;
+    rankingPublished: boolean;
+    rankingPublishedAt: string | null;
+  };
+  activities: RankingActivity[];
+  activitiesCount: number;
+  allComplete: boolean;
+  teams: RankingTeamRow[];
+};
+
+export type PublicRanking = {
+  published: boolean;
+  event: {
+    id: string;
+    name: string;
+    status?: EventStatus;
+    rankingPublished?: boolean;
+    rankingPublishedAt?: string | null;
+  };
+  activities: RankingActivity[];
+  activitiesCount: number;
+  allComplete: boolean;
+  teams: RankingTeamRow[];
+};
+
+export type TeamScoreDetail = {
+  team: { id: string; name: string; active: boolean };
+  event: { id: string };
+  activities: {
+    activityId: string;
+    name: string;
+    position: number;
+    maxScore: number | null;
+    activityStatus: ActivityStatus;
+    scored: boolean;
+    score: number | null;
+    observations?: string | null;
+    evaluatedAt?: string | null;
+    evaluatedBy?: string | null;
+  }[];
+  total: number;
+  evaluatedCount: number;
+  activitiesCount: number;
+  pendingCount: number;
+  complete: boolean;
+};
+
 export type ApiErrorBody = {
   error: { code: string; message: string; details?: unknown };
 };

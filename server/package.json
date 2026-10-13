@@ -17,6 +17,7 @@
     "assign-questions": "tsx prisma/assign-questions.ts",
     "order-routes": "tsx prisma/order-routes.ts",
     "seed-safari": "tsx prisma/seed-safari.ts",
+    "seed-activities": "tsx prisma/seed-activities.ts",
     "create-admin": "tsx src/scripts/create-admin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

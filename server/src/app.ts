@@ -13,6 +13,8 @@ import { passportRoutes } from "@/modules/passport/passport.routes";
 import { visitRoutes } from "@/modules/visits/visit.routes";
 import { safariRoutes } from "@/modules/safari/safari.routes";
 import { safariAdminRoutes } from "@/modules/safari/safari-admin.routes";
+import { scoringAdminRoutes } from "@/modules/scoring/scoring-admin.routes";
+import { rankingRoutes } from "@/modules/scoring/ranking.routes";
 import { adminRoutes } from "@/modules/admin/admin.routes";
 
 /**
@@ -82,6 +84,8 @@ export function createApp() {
   app.use("/api/v1/visits", visitRoutes);
   app.use("/api/v1/safari", safariRoutes);
   app.use("/api/v1/admin/safari", safariAdminRoutes);
+  app.use("/api/v1/admin/scoring", scoringAdminRoutes);
+  app.use("/api/v1/ranking", rankingRoutes);
   app.use("/api/v1/admin", adminRoutes);
 
   app.use(notFoundHandler);

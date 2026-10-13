@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { CalendarDays, Compass, Route, Printer, Download, LayoutDashboard, Binoculars } from "lucide-react";
+import { CalendarDays, Compass, Route, Printer, Download, LayoutDashboard, Binoculars, ListChecks, Trophy } from "lucide-react";
 
 const tabs = [
   { to: "pizarra", label: "Pizarra", icon: LayoutDashboard },
@@ -7,6 +7,8 @@ const tabs = [
   { to: "postas", label: "Postas", icon: CalendarDays },
   { to: "itinerarios", label: "Itinerarios", icon: Route },
   { to: "safari", label: "Safari", icon: Binoculars },
+  { to: "actividades", label: "Actividades", icon: ListChecks },
+  { to: "ranking", label: "Ranking", icon: Trophy },
   { to: "impresion", label: "QR / Imprimir", icon: Printer },
   { to: "resultados", label: "Resultados", icon: Download },
 ];

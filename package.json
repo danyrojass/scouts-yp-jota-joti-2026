@@ -24,6 +24,7 @@
     "assign-questions": "npm --workspace server run assign-questions",
     "order-routes": "npm --workspace server run order-routes",
     "seed-safari": "npm --workspace server run seed-safari",
+    "seed-activities": "npm --workspace server run seed-activities",
     "create-admin": "npm --workspace server run create-admin"
   },
   "devDependencies": {

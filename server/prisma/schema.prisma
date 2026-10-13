@@ -36,6 +36,22 @@ enum VisitStatus {
   INCORRECT
 }
 
+// Estado de evaluacion de una actividad del ranking general.
+enum ActivityStatus {
+  PENDING
+  IN_EVALUATION
+  FINISHED
+}
+
+// Como se otorgan los puntos de una actividad. Durante el MVP todo es MANUAL;
+// CHECKLIST y STATIONS quedan preparados para reglas automaticas futuras
+// (p. ej. el Safari o las postas QR) sin sobrescribir resultados manuales.
+enum ScoringMethod {
+  MANUAL
+  CHECKLIST
+  STATIONS
+}
+
 // Administrative users.
 model User {
   id           String   @id @default(cuid())
@@ -58,6 +74,10 @@ model Event {
   status      EventStatus @default(PREPARED)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  // Publicacion del ranking general. Mientras es false la vista publica
+  // muestra "clasificacion no disponible". Se registra cuando se publica.
+  rankingPublished   Boolean   @default(false)
+  rankingPublishedAt DateTime?
 
   teams    Team[]
   stations Station[]
@@ -65,6 +85,8 @@ model Event {
   auditLogs AuditLog[]
   safari   Safari?
   safariFinds SafariFind[]
+  activities        Activity[]
+  teamActivityScores TeamActivityScore[]
 
   @@index([status])
 }
@@ -84,6 +106,7 @@ model Team {
   visits     StationVisit[]
   safariFinds SafariFind[]
   auditLogs  AuditLog[]
+  activityScores TeamActivityScore[]
 
   @@index([eventId])
   @@unique([eventId, name])
@@ -241,4 +264,57 @@ model SafariFind {
   @@index([teamId])
   @@index([safariId])
   @@index([eventId])
+}
+
+// Una actividad puntuable del ranking general (Safari, caminata, talleres...).
+// Configurable desde el panel admin salvo por su eventId; no comparte resultados
+// entre eventos distintos.
+model Activity {
+  id          String         @id @default(cuid())
+  eventId     String
+  name        String
+  description String?
+  // Puntaje maximo opcional. Si es NULL la actividad no tiene tope.
+  maxScore    Float?
+  position    Int            @default(0)
+  status      ActivityStatus @default(PENDING)
+  scoringMethod ScoringMethod @default(MANUAL)
+  // Si los resultados de esta actividad estan publicados en la vista publica.
+  published   Boolean        @default(false)
+  // Permiso explicito para cargar un puntaje mayor al maximo configurado.
+  allowMaxScoreExceeded Boolean @default(false)
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  event  Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  scores TeamActivityScore[]
+
+  @@index([eventId])
+  @@unique([eventId, name])
+}
+
+// Resultado vigente de un equipo en una actividad. `evaluated=false` significa
+// "sin evaluar" (NO es lo mismo que cero puntos): en ese caso `score` es NULL.
+// El par unico (teamId, activityId) garantiza un unico resultado vigente.
+model TeamActivityScore {
+  id           String    @id @default(cuid())
+  eventId      String
+  teamId       String
+  activityId   String
+  score        Float?
+  evaluated    Boolean   @default(false)
+  observations String?
+  evaluatedBy  String?
+  evaluatedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, activityId])
+  @@index([eventId])
+  @@index([activityId])
 }

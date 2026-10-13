@@ -1,5 +1,5 @@
 import { Navigate, Outlet, NavLink, useLocation } from "react-router-dom";
-import { Compass, Map, Camera, LogOut, Binoculars } from "lucide-react";
+import { Compass, Map, Camera, LogOut, Binoculars, Trophy } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Logo } from "@/components/Logo";
@@ -9,6 +9,7 @@ const navItems = [
   { to: "/escanear", label: "Escanear", icon: Camera },
   { to: "/itinerario", label: "Ruta", icon: Map },
   { to: "/safari", label: "Safari", icon: Binoculars },
+  { to: "/ranking", label: "Ranking", icon: Trophy },
 ];
 
 export function TeamShelter() {
@@ -55,7 +56,7 @@ export function TeamShelter() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-beige-200 bg-white pb-[env(safe-area-inset-bottom)]">
-        <div className="mx-auto grid max-w-2xl grid-cols-4">
+        <div className="mx-auto grid max-w-2xl grid-cols-5">
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
