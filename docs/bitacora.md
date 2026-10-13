@@ -234,4 +234,17 @@ Nota: los nombres `Pizzaldo` y `Cancha` del panel difieren de los nombres canón
 - **UI**: nuevo tab admin **Actividades** (`/admin/eventos/:eventId/actividades`) y **Ranking** (`/admin/eventos/:eventId/ranking`), y acceso **Ranking** en la navegación del equipo (oculto hasta publicar, muestra "clasificación no disponible").
 - **Tests**: `server/tests/scoring.test.ts` (30 casos: seguridad, CRUD, validaciones, upsert, sin evaluar ≠ 0, total, empates 1224, aislamiento, publicación, CSV y auditoría). Suite completa: **74 server + 4 client** en verde; `npm run typecheck` OK.
 - **Verificado local** con PostgreSQL/Docker (`docker compose up -d db`): migración aplicada a `ypacarai_test` y a la base de dev.
-- Pendiente: aplicar `npm run db:deploy` y `npm run seed-activities` a Neon antes del evento; probar el flujo de puntaje/publicación en vivo.
+- **Aplicado en producción (Neon) el 2026-10-13**: migración `20261013000000_activities_and_scores` desplegada y **8 actividades** creadas en el evento real "JOTA-JOTI Ypacaraí 2026" (idempotente: 2ª corrida → 0 creadas, 8 totales).
+
+### Incidente P2022 en producción (2026-10-13)
+
+- **Síntoma**: en Vercel (`/var/task`) `GET /api/v1/events` → `P2022: The column '(not available)' does not exist in the current database` en `prisma.event.findMany()`.
+- **Causa**: el Prisma Client deployado ya consultaba `Event.rankingPublished`/`rankingPublishedAt`, pero la migración nueva **no se había aplicado a Neon**. Código un paso adelante del esquema remoto.
+- **Fix**: `npm run db:deploy` contra la cadena **unpooled/directa** de Neon (la pooled no sirve para `migrate deploy`). No requiere redeploy: el cambio es de esquema.
+- **Trampa local (DNS/IPv6)**: esta máquina resuelve AAAA y el **motor nativo** de Prisma Client no alcanza el host de Neon (`P1001: Can't reach database server`). El CLI `prisma migrate deploy` sí funcionó forzando `NODE_OPTIONS=--dns-result-order=ipv4first`. El seed remoto se hizo con el driver **`pg`** (mismo camino que producción con `@prisma/adapter-pg`), porque `npm run seed-activities` usa el motor nativo y fallaba igual. Comandos:
+  ```powershell
+  # migración: usar la cadena UNPOOLED (sin -pooler) y forzar IPv4 para el motor
+  $env:DATABASE_URL="postgresql://...@ep-....aws.neon.tech/neondb?sslmode=require"
+  $env:NODE_OPTIONS="--dns-result-order=ipv4first"; npm run db:deploy
+  ```
+- Pendiente menor: probar el flujo de puntaje/publicación en vivo desde el panel admin.
