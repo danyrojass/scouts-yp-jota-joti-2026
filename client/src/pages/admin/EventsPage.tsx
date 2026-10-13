@@ -179,7 +179,7 @@ export function EventsPage() {
             {actionError && <Alert tone="error">{actionError}</Alert>}
             <div>
               <label className="label">Nombre</label>
-              <input className="input" {...register("name")} placeholder="Exploración de Ypacaraí 2026" />
+              <input className="input" {...register("name")} placeholder="JOTA-JOTI 2026 Ypacaraí" />
               {errors.name && <p className="mt-1 text-sm font-semibold text-red-600">{errors.name.message}</p>}
             </div>
             <div>

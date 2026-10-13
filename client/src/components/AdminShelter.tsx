@@ -27,7 +27,7 @@ export function AdminShelter() {
               <Logo size={32} />
               <div className="leading-tight">
                 <p className="font-display text-lg font-bold text-forest-900">Panel del Organizador</p>
-                <p className="text-xs font-semibold uppercase tracking-widest text-clay-600">Exploración de Ypacaraí</p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-clay-600">JOTA-JOTI 2026 Ypacaraí</p>
               </div>
             </div>
           </div>

@@ -54,7 +54,7 @@ export function LoginPage() {
           <Logo size={72} />
           <div>
             <h1 className="font-display text-3xl font-bold text-white">
-              Exploración de Ypacaraí
+              JOTA-JOTI 2026 Ypacaraí
             </h1>
             <p className="mt-1 flex items-center justify-center gap-1.5 text-sm font-semibold text-beige-300">
               <Compass className="h-4 w-4" />

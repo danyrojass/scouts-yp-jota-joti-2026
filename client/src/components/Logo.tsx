@@ -34,7 +34,7 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
       <Logo />
       <div className="leading-tight">
         <p className="font-display text-xl font-bold text-forest-900">
-          Exploración de Ypacaraí
+          JOTA-JOTI 2026 Ypacaraí
         </p>
         {!compact && (
           <p className="text-xs font-semibold uppercase tracking-widest text-clay-600">
