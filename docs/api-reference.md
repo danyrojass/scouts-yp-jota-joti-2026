@@ -22,11 +22,12 @@ Base URL: `/api/v1`. En desarrollo, el cliente (5173) proxya `/api` hacia el ser
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/passport` | Pasaporte: `{ team, event, progress, stops, history }`. Cada stop incluye `latitude`, `longitude` y `mapsUrl` (null si la posta no tiene coordenadas). |
-| GET | `/passport/next-station` | `{ nextStation }` (id o null). |
+| GET | `/passport` | Pasaporte: `{ team, event, progress, stops, history }`. Cada stop incluye `latitude`, `longitude` y `mapsUrl` (null si la posta no tiene coordenadas), y `skipped`/`skippedAt`. `progress` incluye `completed` (resueltas = `VALID`+`SKIPPED`), `valid`, `skipped` y `resolvedStations`. |
+| GET | `/passport/next-station` | `{ nextStation }` (id o null). Es la primera posta no resuelta (`VALID` o `SKIPPED`). |
 | PATCH | `/passport/profile` | El equipo renombra su **nombre visible**. Body `{ name }` → `{ team }`. Debe ser único en el evento (`409` si ya existe); el `username` de login no cambia. |
 | GET | `/visits/posta/:token` | Pantalla de desafío. `{ status, station? }`. |
 | POST | `/visits` | Registra visita. Body `{ publicToken, answer }`. |
+| POST | `/visits/skip` | **Recuperación de posta**: salta la próxima posta sin resolver ingresando la frase de rescate. Body `{ phrase, reason? }` → `{ result: "SKIPPED", skipped, nextStation, remaining }`. Códigos: `RESCUE_PHRASE_INVALID` (400), `SKIP_DISABLED`/`ALL_RESOLVED`/`NOT_YOUR_NEXT` (409), `EVENT_NOT_READY`/`EVENT_FINISHED`/`EVENT_CANCELLED` (409). Requiere `x-csrf-token`. |
 | GET | `/safari` | Safari del equipo: `{ team, event, safari, items, categories, progress }`. `safari` es `null` si el evento no tiene safari. Cada ítem trae `category`, `itemType`, `requiresPhoto`, `found`, `foundAt`, `value` (observación, p. ej. cantidad) y `photoReady` (evidencia fotográfica declarada). |
 | POST | `/safari/items/:itemId/find` | Marca un elemento como encontrado (idempotente). Body opcional `{ value }` (obligatorio para `itemType: NUMERIC`). Requiere evento `IN_PROGRESS` (`409` si no lo está; `403` si el elemento es de otro evento). Devuelve el safari actualizado. |
 | DELETE | `/safari/items/:itemId/find` | Desmarca un elemento (idempotente). Mismas restricciones. |
@@ -49,7 +50,11 @@ Si el **itinerario del equipo** tiene una *pregunta bonus* en esa posta (`RouteS
 { "result": "INCORRECT", "message": "...", "attemptNumber": 1 }
 // sin avance
 { "result": "ALREADY_COMPLETED" | "NOT_YOUR_NEXT" | "EVENT_NOT_READY" | "EVENT_FINISHED" | "EVENT_CANCELLED" | "INACTIVE" | "WRONG_EVENT", "message": "..." }
+// salto de posta (POST /visits/skip)
+{ "result": "SKIPPED", "message": "...", "skipped": { "id", "name", "position" }, "nextStation": { "id", "name", "position" } | null, "remaining": 2 }
 ```
+
+El salto (`SKIPPED`) resuelve la posta para el avance y vale **media posta** para la actividad `STATIONS` (recálculo automático del puntaje).
 
 ## Eventos (rol `admin`)
 
@@ -75,6 +80,8 @@ Solo puede existir **un** evento activo a la vez (409 si se intenta crear/activa
 | PATCH | `/teams/:id` | Actualiza `{ name?, username?, password?, active? }`. |
 | GET | `/teams/:id/route` | Itinerario ordenado. |
 | PUT | `/teams/:id/route` | Setea itinerario. Body `{ stationIds: string[], force? }`. |
+| POST | `/teams/:id/skip-station` | Marca una posta como **saltada** para el equipo. Body `{ stationId, reason? }` → `{ ok: true }`. Idempotente; nunca reemplaza una visita `VALID`. Auditoría `STATION_SKIPPED`. |
+| POST | `/teams/:id/unskip-station` | Deshace el salto de una posta. Body `{ stationId }` → `{ ok: true }`. Auditoría `STATION_UNSKIPPED`. |
 | POST | `/teams/:id/reset-progress` | Borra las visitas del equipo. |
 
 ## Postas (rol `admin`)
@@ -82,19 +89,32 @@ Solo puede existir **un** evento activo a la vez (409 si se intenta crear/activa
 | Método | Ruta | Descripción |
 |---|---|---|
 | GET | `/stations?eventId=` | Lista postas del evento. |
-| POST | `/stations` | Crea posta. Body `{ eventId, name, challengeType, instructions?, expectedAnswer?, displayedCode?, autoAcceptAny?, description?, latitude?, longitude? }`. |
+| POST | `/stations` | Crea posta. Body `{ eventId, name, challengeType, instructions?, expectedAnswer?, displayedCode?, autoAcceptAny?, description?, rescuePhrase?, latitude?, longitude? }`. |
 | GET | `/stations/:id` | Detalle (sin `expectedAnswer`). |
-| PATCH | `/stations/:id` | Actualiza la posta. |
+| PATCH | `/stations/:id` | Actualiza la posta (incluye `rescuePhrase?`). |
 | DELETE | `/stations/:id` | Elimina → 204. |
 | GET | `/stations/:id/qr` | PNG imprimible del QR. |
 | GET | `/stations/:id/qr/data` | `{ url, token }` del QR. |
 | POST | `/stations/import` | Importa coordenadas desde CSV. Body `{ eventId, csv }` → `{ updated, errors: [{ row, error }], parsed }`. No crea postas: empareja por nombre, `publicToken` o `displayedCode`. |
 
-`challengeType`: `CODE`, `QUESTION`, `CONFIRMATION`, `AUTO`. `latitude` y `longitude` son opcionales pero deben venir juntas (`-90..90` / `-180..180`).
+`challengeType`: `CODE`, `QUESTION`, `CONFIRMATION`, `AUTO`. `latitude` y `longitude` son opcionales pero deben venir juntas (`-90..90` / `-180..180`). `rescuePhrase` es la frase secreta de recuperación (nunca se expone al equipo ni se imprime en la hoja pública de QR).
 
 El CSV tiene columnas `nombre, qr_id, latitud, longitud, descripcion` (el encabezado es opcional; delimitador `,`, `;` o tab).
 
 `challengeType`: `CODE`, `QUESTION`, `CONFIRMATION`, `AUTO`.
+
+## Integrantes (rol `admin`)
+
+Base `/members`. Lista de beneficiarios del evento (sin cuenta ni login). Todas requieren `requireAdmin`; las mutaciones requieren `x-csrf-token`.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/members?eventId=` | `{ members }` del evento, con `team` (`{ id, name }` o `null`). |
+| POST | `/members` | Crea integrante. Body `{ eventId, firstName, lastName, document?, birthDate?, role?, teamId?, phone?, notes?, active? }` → 201 `{ member }`. Documento duplicado en el evento → `409`. |
+| PATCH | `/members/:id` | Actualiza campos parciales → `{ member }`. |
+| DELETE | `/members/:id` | Elimina → 204. |
+
+`role`: `SCOUT` \| `DIRIGENTE` \| `OTRO`. `birthDate` es una fecha ISO. `teamId` debe pertenecer al mismo evento (400 en caso contrario).
 
 ## Administración / métricas (rol `admin`)
 

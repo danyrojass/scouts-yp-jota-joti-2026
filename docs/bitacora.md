@@ -1,7 +1,7 @@
 # Bitácora de deploy — Vercel
 
 Registro de avance del despliegue de **Exploración de Ypacaraí** en Vercel.
-Última actualización: **2026-10-13**.
+Última actualización: **2026-10-14**.
 
 ## Estado actual
 
@@ -248,3 +248,17 @@ Nota: los nombres `Pizzaldo` y `Cancha` del panel difieren de los nombres canón
   $env:NODE_OPTIONS="--dns-result-order=ipv4first"; npm run db:deploy
   ```
 - Pendiente menor: probar el flujo de puntaje/publicación en vivo desde el panel admin.
+
+## Funcionalidad: recuperación de postas e integrantes (2026-10-14)
+
+- **Recuperación de postas (salto con frase de rescate)**: si un equipo no encuentra el QR de su próxima posta, la **salta** ingresando la **frase de rescate** que dictan los coordinadores (nueva columna `Station.rescuePhrase`, secreta; nunca se expone al equipo ni se imprime en la hoja pública de QR). No hay cupo fijo de saltos: la frase por posta es el control de acceso.
+- **Nuevo estado `VisitStatus.SKIPPED`** y columna `StationVisit.skipReason`. Una posta saltada cuenta como **semi-completada**: avanza el itinerario y vale **media posta**.
+- **Orden por resolución, no por conteo**: la "próxima posta" es la primera no resuelta (`VALID` o `SKIPPED`). Retrocompatible: sin saltos el comportamiento es idéntico. `skipStation` corre en transacción `SERIALIZABLE` con reintento y usa el mismo `validKey` único.
+- **Puntaje automático de la actividad `STATIONS`** (`recomputeStationsScoreForTeam`): `score = round2((validas + 0.5 × saltadas) × maxScore / totalStops)`, con tope en `maxScore`; upsert con `evaluatedBy="sistema"` y **nunca** pisa un puntaje cargado a mano. Se recalcula al confirmar/saltar y al forzar/reiniciar itinerario.
+- **Admin**: `POST /teams/:id/skip-station` y `POST /teams/:id/unskip-station` (auditados `STATION_SKIPPED`/`STATION_UNSKIPPED`); campo *Frase de rescate* en Postas; columnas *Saltadas* en el dashboard y *Postas saltadas* en el CSV de resultados; botón **Saltar** en el escaneo del equipo y estado ámbar en mapa/pasaporte.
+- **Integrantes (`Member`)**: nueva lista de beneficiarios por evento (sin cuenta ni login), `teamId` opcional, `role` (`SCOUT`/`DIRIGENTE`/`OTRO`), documento único por evento (`@@unique([eventId, document])`; duplicado → 409). Módulo `/api/v1/members` (todo `requireAdmin`) y página admin **Integrantes**.
+- **Panel admin reorganizado** en 4 grupos (Resumen / Participantes / Recorrido / Puntuación); **Equipos y puntaje** fusiona Equipos y Ranking en sub-tabs (`?tab=ranking`) y suma una columna **Itinerario** con deep link `?team=` a Itinerarios.
+- **Migraciones aditivas**: `20261014000000_station_skip` (enum `SKIPPED`, `Station.rescuePhrase`, `StationVisit.skipReason`) y `20261014010000_add_members` (`Member` + `MemberRole`). No resetean datos.
+- **Seed**: la actividad `STATIONS` (**JOTA-JOTI Ypacaraí 2026**) queda con `maxScore=80`; el seed **completa** el `maxScore` si está `null` pero **nunca** pisa un valor definido a mano → correr `npm run seed-activities` tras el deploy para activar el puntaje automático en bases existentes.
+- **Tests**: nuevos `server/tests/skip.test.ts` y `server/tests/members.test.ts`; `helpers.ts` con `rescuePhrase` por posta y `setup.ts` limpiando `Member`. `npm run typecheck` (server + client) y `npm run test:client` en verde. La suite server no corre local (sin PostgreSQL/Docker): pendiente de aplicar las migraciones y correr `npm run test:server`.
+- **Pendiente de deploy**: aplicar ambas migraciones a Neon con `NODE_OPTIONS=--dns-result-order=ipv4first npm run db:deploy` (cadena unpooled) y correr `npm run seed-activities`.

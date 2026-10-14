@@ -2,7 +2,7 @@
 
 ## Visión general
 
-Aplicación web para una carrera de orientación por postas con código QR. Cada equipo tiene un **itinerario** (orden de postas) y un **pasaporte digital**. En cada posta escanea un QR, resuelve un desafío y el **servidor** valida y registra el avance. La administración configura el evento, los equipos, las postas y los itinerarios, y sigue el progreso en vivo. Además hay un **Safari de Exploración** (checklist colaborativo por equipo), un **mapa** del itinerario (Leaflet + OpenStreetMap con coordenadas por posta) y un **módulo de puntuaciones y ranking general** (actividades configurables, carga de puntajes por equipo, ranking admin/público con publicación explícita).
+Aplicación web para una carrera de orientación por postas con código QR. Cada equipo tiene un **itinerario** (orden de postas) y un **pasaporte digital**. En cada posta escanea un QR, resuelve un desafío y el **servidor** valida y registra el avance. La administración configura el evento, los equipos, las postas y los itinerarios, y sigue el progreso en vivo. Además hay un **Safari de Exploración** (checklist colaborativo por equipo), un **mapa** del itinerario (Leaflet + OpenStreetMap con coordenadas por posta), un **módulo de puntuaciones y ranking general** (actividades configurables, carga de puntajes por equipo, ranking admin/público con publicación explícita), la **recuperación de postas** (un equipo puede saltar una posta que no encuentra ingresando una frase de rescate, contando como semi-completada) y una **lista de integrantes** (beneficiarios del evento, sin cuenta ni inicio de sesión).
 
 ```
 ┌──────────────┐        HTTPS (cookies HTTP-only)        ┌───────────────┐
@@ -55,7 +55,19 @@ Event 1─* Activity 1─* TeamActivityScore *─1 Team
 
 Event (extra): rankingPublished Boolean @default(false)
                rankingPublishedAt DateTime?
+
+Event 1─* Member *─1 Team (opcional)
+  id, eventId,             id, firstName,
+  teamId?, lastName,       lastName, document?,
+  document, birthDate?,    role (@enum MemberRole),
+  role, phone?, notes?,    active, ...          (@unique [eventId, document])
+
+Station (extra): rescuePhrase String?   (frase secreta de rescate)
+StationVisit (extra): skipReason String?  (nota del salto)
+VisitStatus: VALID | INCORRECT | SKIPPED
 ```
+
+Restricción clave de integrantes: `Member @@unique([eventId, document])`. Como PostgreSQL permite múltiples `NULL` en un índice `UNIQUE`, varios integrantes pueden no tener documento; si lo tienen, es único dentro del evento.
 
 Restricción clave: `StationVisit.validKey String? @unique`. Solo se setea cuando la visita es `VALID`, con el valor `"{teamId}:{stationId}"`. Como PostgreSQL permite múltiples `NULL` en una columna `UNIQUE`, esto garantiza **a lo sumo una visita válida por equipo y posta**, incluso con peticiones concurrentes.
 
@@ -112,6 +124,22 @@ PREPARED ──start──▶ IN_PROGRESS ──finish──▶ FINISHED
 - **Vista pública** gated por `Event.rankingPublished` (se publica/oculta explícitamente desde el panel; se registra `rankingPublishedAt`). La vista pública (`publicOnly`) considera solo actividades con `published=true` y **nunca** expone observaciones ni datos de auditoría.
 - Exportación CSV (`GET /admin/scoring/export`) con posición, total, evaluadas y una columna por actividad. Las operaciones se auditan (`Activity`, `TeamActivityScore`, `RANKING_PUBLISHED`/`RANKING_UNPUBLISHED`).
 
+### Recuperación de postas (salto con frase de rescate)
+- Si un equipo **no encuentra el QR** de su próxima posta, puede **saltarla** ingresando la **frase de rescate** que le dictan los coordinadores. No hay cupo fijo de saltos: la frase por posta **es** el control de acceso.
+- Cada posta tiene un `rescuePhrase` **secreto** (columna `Station.rescuePhrase`, solo admin). **Nunca** se envía al cliente del equipo ni se imprime en la hoja pública de QR.
+- El salto crea una visita `SKIPPED` (con `skipReason` opcional) y **cuenta como semi-completada**: para el avance es una posta **resuelta** y para el puntaje vale **media posta**.
+- **Orden por resolución, no por conteo**: la "próxima posta" es la primera del itinerario cuyo estado no sea `VALID` ni `SKIPPED`. Sin saltos el comportamiento es idéntico al anterior (retrocompatible).
+- `skipStation` corre en transacción `SERIALIZABLE` (con reintento): valida estado del evento y que la posta sea la próxima sin resolver, compara la frase normalizada y usa el mismo `validKey` único. Códigos: `RESCUE_PHRASE_INVALID`, `SKIP_DISABLED`, `ALL_RESOLVED`.
+- **Puntaje automático de la actividad STATIONS** (`recomputeStationsScoreForTeam`): al confirmar o saltar (y al forzar/reiniciar itinerario) se recalcula y hace upsert de `TeamActivityScore` con `evaluatedBy="sistema"`:
+  `score = round2((validas + 0.5 × saltadas) × maxScore / totalStops)`, con tope en `maxScore`. Solo aplica a la actividad `scoringMethod=STATIONS` con `maxScore` definido y **nunca pisa** un puntaje cargado a mano (si `evaluatedBy !== "sistema"` se respeta).
+- El admin puede **saltar/deshacer el salto** de una posta de un equipo (`skipTeamStation`/`unskipTeamStation`), auditado (`STATION_SKIPPED`/`STATION_UNSKIPPED`); nunca reemplaza una visita `VALID`.
+- El progreso (`ProgressSnapshot`) expone `completed` (resueltas = `VALID`+`SKIPPED`), `valid`, `skipped` y `resolvedStations`; el pasaporte marca `skipped`/`skippedAt` por parada.
+
+### Integrantes (Member)
+- Lista de **beneficiarios** del evento administrada por el admin. Son **solo datos**: no tienen cuenta, sesión ni login.
+- Globales por evento con `teamId` **opcional** (equipo preasignado). Campos mínimos: nombre, apellido, documento/fecha de nacimiento/teléfono/notas opcionales, `role` (`SCOUT`/`DIRIGENTE`/`OTRO`), `active`.
+- Módulo `/api/v1/members` (todo `requireAdmin`): listar por evento, crear, editar y eliminar. Documento duplicado en el evento → `P2002` → `409`.
+
 ### Coordenadas y mapa
 - `Station.latitude` / `Station.longitude` (`Float?`) alimentan el mapa; **solo el admin** las gestiona (formulario de posta o importación CSV masiva `POST /stations/import`).
 - La importación es **idempotente y no crea postas**: empareja por nombre, `publicToken` o `displayedCode` y reporta errores por fila.
@@ -152,6 +180,7 @@ server/src/
 │  ├─ passport/             # pasaporte del equipo (con coords + mapsUrl)
 │  ├─ safari/               # safari de exploración (equipo + admin/progreso)
 │  ├─ scoring/              # actividades, puntajes, ranking (admin + público) y CSV
+│  ├─ members/              # integrantes del evento (beneficiarios, solo admin)
 │  ├─ admin/                # dashboard, resultados CSV, auditoría
 │  └─ progress/             # cálculo de progreso (compartido)
 ├─ app.ts                   # composición de la app Express

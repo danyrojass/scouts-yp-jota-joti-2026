@@ -27,7 +27,9 @@ Verificar: `curl http://localhost:4000/api/health`.
 | Cargar el checklist oficial del safari (sin borrar) | `npm run seed-safari` → crea el safari con título y descripción oficiales y los **24 elementos** de la checklist JOTA JOTI 2026 agrupados por categoría (signos, naturaleza, objetos, fotos) con su tipo (`PHOTO`/`OBJECT`/`NUMERIC`/`COLLECTION`) y `requiresPhoto`. **No borra nada**: crea los faltantes, actualiza metadatos de los existentes y respeta `active`. Idempotente. Después podés editar/desactivar desde el panel admin |
 | Configurar el safari | Evento → **Safari** (crear, items, categoría, tipo, requiere foto, orden, activo) |
 | Reiniciar progreso del safari | Evento → **Safari** → *Reiniciar* (por equipo o todos); queda auditado |
-| Cargar actividades del ranking (sin borrar) | `npm run seed-activities` → crea las 8 actividades del evento (Safari de Exploración, JOTA-JOTI Ypacaraí 2026, Conectando con el mundo, Maestros del código, Hermandad scout, Equipo inclusivo, Embajadores de Paraguay, Guardianes del planeta) **sin borrar nada**; empareja por nombre o posición y respeta `active`/`published`. Idempotente |
+| Cargar actividades del ranking (sin borrar) | `npm run seed-activities` → crea las 8 actividades del evento (Safari de Exploración, JOTA-JOTI Ypacaraí 2026, Conectando con el mundo, Maestros del código, Hermandad scout, Equipo inclusivo, Embajadores de Paraguay, Guardianes del planeta) **sin borrar nada**; empareja por nombre o posición y respeta `active`/`published`. La actividad `STATIONS` (**JOTA-JOTI Ypacaraí 2026**) recibe `maxScore=80` por defecto; el seed **completa** el `maxScore` si está `null` pero **nunca pisa** un valor ya definido a mano. Idempotente |
+| Configurar la frase de rescate | Evento → **Postas** → campo *Frase de rescate* de cada posta. Es **secreta**: permite que el equipo salte esa posta (media unidad de puntaje) cuando no encuentra el QR. No se imprime en la hoja pública de QR |
+| Cargar integrantes | Evento → **Integrantes** (alta/edición/baja de beneficiarios, asignación opcional a equipo). Son solo datos, sin cuenta |
 | Puntuar actividades | Evento → **Actividades** (crear/editar/reordenar, matriz equipos × actividades, cargar puntajes y observaciones) |
 | Ver/publicar el ranking | Evento → **Ranking** (publicar/ocultar, detalle por equipo, export CSV). La vista pública es `/ranking/:eventId` |
 | Correr tests | `npm test` |
@@ -56,6 +58,8 @@ Definidas en `server/.env` (ver `.env.example`). Claves:
    ```
 4. Deploy: `vercel.json` define `buildCommand=npm run build:vercel`, `outputDirectory=client/dist`, rutea `/api/*` a `api/index.js` y el resto a `index.html`. El router usa `BrowserRouter`, por eso el fallback SPA es imprescindible.
 5. Verificá `GET https://<proyecto>.vercel.app/api/health` → `{"status":"ok"}`.
+
+Tras aplicar una migración nueva a producción, corré `npm run seed-activities` (con la base remota) para **completar el `maxScore` de la actividad STATIONS** si quedó en `null` (base creada antes del valor por defecto). El seed es idempotente y no pisa valores ya definidos.
 
 Notas:
 - La app usa el **driver adapter** de Prisma (`@prisma/adapter-pg`) para no depender del binario nativo del motor en Vercel. Igual se generan `binaryTargets` (`native` + `rhel-openssl-3.0.x`) para que `prisma migrate deploy` funcione en el build/runtime Linux.
@@ -104,6 +108,18 @@ Notas:
 - El contenedor no está arriba: `docker compose up -d db` y `docker compose ps` (debe decir `healthy`).
 - Conflicto de puerto: si ya hay un PostgreSQL local en 5432, este proyecto usa **5433** en el host. Verificá que `DATABASE_URL` use `127.0.0.1:5433`.
 - En Windows, `localhost` puede resolver a IPv6 (`::1`) y fallar; usá `127.0.0.1` en `DATABASE_URL`.
+
+**`P2022: The column ... does not exist in the current database` (Vercel)**
+- El Prisma Client deployado ya consulta una columna nueva pero la migración **no se aplicó** a la base remota. Corré `npm run db:deploy` contra la cadena **unpooled/directa** de Neon (la pooled no sirve para `migrate deploy`) y **no** hace falta redeploy: es un cambio de esquema.
+- Trampa local (DNS/IPv6): esta máquina resuelve AAAA y el motor nativo de Prisma Client no alcanza el host de Neon. Forzá IPv4 para el CLI:
+  ```powershell
+  $env:DATABASE_URL="postgresql://...@ep-....aws.neon.tech/neondb?sslmode=require"
+  $env:NODE_OPTIONS="--dns-result-order=ipv4first"; npm run db:deploy
+  ```
+
+**El equipo no puede saltar la posta (no cuenta puntos STATIONS)**
+- La actividad **JOTA-JOTI Ypacaraí 2026** debe tener `scoringMethod=STATIONS` y `maxScore` definido. Si está en `null`, corré `npm run seed-activities` (completa el `80`) o setealo desde **Actividades**.
+- La posta a saltar debe ser la **próxima sin resolver** del itinerario del equipo y tener `rescuePhrase`. El puntaje cargado a mano (con `evaluatedBy` distinto de `sistema`) **no** se recalcula.
 
 **Docker Desktop no inicia el daemon**
 - Abrir Docker Desktop y esperar a que el motor esté "running"; recién entonces `docker compose up`.
