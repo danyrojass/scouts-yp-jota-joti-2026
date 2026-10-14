@@ -262,3 +262,11 @@ Nota: los nombres `Pizzaldo` y `Cancha` del panel difieren de los nombres canón
 - **Seed**: la actividad `STATIONS` (**JOTA-JOTI Ypacaraí 2026**) queda con `maxScore=80`; el seed **completa** el `maxScore` si está `null` pero **nunca** pisa un valor definido a mano → correr `npm run seed-activities` tras el deploy para activar el puntaje automático en bases existentes.
 - **Tests**: nuevos `server/tests/skip.test.ts` y `server/tests/members.test.ts`; `helpers.ts` con `rescuePhrase` por posta y `setup.ts` limpiando `Member`. `npm run typecheck` (server + client) y `npm run test:client` en verde. La suite server no corre local (sin PostgreSQL/Docker): pendiente de aplicar las migraciones y correr `npm run test:server`.
 - **Pendiente de deploy**: aplicar ambas migraciones a Neon con `NODE_OPTIONS=--dns-result-order=ipv4first npm run db:deploy` (cadena unpooled) y correr `npm run seed-activities`.
+
+### Deploy y UI de recuperación (2026-10-14)
+
+- **Migraciones aplicadas a Neon** (`neondb`): `20261014000000_station_skip` y `20261014010000_add_members`. `prisma migrate deploy` OK (cadena unpooled + `NODE_OPTIONS=--dns-result-order=ipv4first`).
+- **Seed**: `npm run seed-activities` (mismo truco de IPv4) → 0 creadas / 2 actualizadas; verificado en la base que `JOTA-JOTI Ypacaraí 2026` quedó `STATIONS` con `maxScore=80`.
+- **Código pusheado** (`main`): `46a419f feat(postas)` + `40eb614 docs`. Vercel desplegó `40eb614` (status **success**). Smoke test en producción: `/api/health` OK; `/api/v1/members` y `/api/v1/visits/skip` responden **401** (rutas vivas y protegidas). El 404 de `/api/v1/ranking` es esperado: sin evento publicado `getPublicRanking` tira `notFound`.
+- **UI admin de recuperación**: en **Equipos** → ícono *Postas y recuperación* abre un modal con las postas del equipo (Completada / Saltada / Pendiente) y botones *Saltar* (con motivo opcional) y *Deshacer*; usa `GET /teams/:id` y los endpoints skip/unskip. `npm run typecheck` y `npm run build` en verde.
+- **Pendiente**: correr `npm run test:server` (skip/members) requiere PostgreSQL; no se corrió local. Probar en vivo el flujo completo (saltar desde el equipo y desde el admin, verificar medio punto).

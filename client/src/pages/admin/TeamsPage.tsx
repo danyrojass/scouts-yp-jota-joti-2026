@@ -3,9 +3,9 @@ import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, RotateCcw, KeyRound, Trophy, Route, Compass } from "lucide-react";
+import { Plus, Pencil, RotateCcw, KeyRound, Trophy, Route, Compass, ListChecks, SkipForward, Undo2 } from "lucide-react";
 import { api } from "@/api/client";
-import { errorMessage, type Dashboard, type EventItem, type TeamItem } from "@/api/types";
+import { errorMessage, type Dashboard, type EventItem, type TeamDetail, type TeamItem, type VisitStatus } from "@/api/types";
 import { useApi } from "@/hooks/useApi";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Alert } from "@/components/Alert";
@@ -35,6 +35,12 @@ export function TeamsPage() {
   const [confirmReset, setConfirmReset] = useState<TeamItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [manageTeam, setManageTeam] = useState<{ id: string; name: string } | null>(null);
+  const [teamDetail, setTeamDetail] = useState<TeamDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [skipTarget, setSkipTarget] = useState<{ stationId: string; stationName: string } | null>(null);
+  const [skipReason, setSkipReason] = useState("");
 
   const {
     register,
@@ -95,8 +101,81 @@ export function TeamsPage() {
     }
   };
 
+  const loadTeamDetail = useCallback(async (teamId: string) => {
+    const res = await api.get<{ team: TeamDetail }>(`/api/v1/teams/${teamId}`);
+    return res.team;
+  }, []);
+
+  const openManage = async (team: { id: string; name: string }) => {
+    setManageTeam(team);
+    setTeamDetail(null);
+    setDetailError(null);
+    setSkipTarget(null);
+    setSkipReason("");
+    setDetailLoading(true);
+    try {
+      setTeamDetail(await loadTeamDetail(team.id));
+    } catch (err) {
+      setDetailError(errorMessage(err));
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const refreshDetail = async () => {
+    if (!manageTeam) return;
+    setTeamDetail(await loadTeamDetail(manageTeam.id));
+  };
+
+  const doSkip = async () => {
+    if (!manageTeam || !skipTarget) return;
+    setBusy(true);
+    setDetailError(null);
+    try {
+      await api.post(`/api/v1/teams/${manageTeam.id}/skip-station`, {
+        stationId: skipTarget.stationId,
+        reason: skipReason.trim() || undefined,
+      });
+      setSkipTarget(null);
+      setSkipReason("");
+      await refreshDetail();
+      await reload();
+    } catch (err) {
+      setDetailError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doUnskip = async (stationId: string) => {
+    if (!manageTeam) return;
+    setBusy(true);
+    setDetailError(null);
+    try {
+      await api.post(`/api/v1/teams/${manageTeam.id}/unskip-station`, { stationId });
+      await refreshDetail();
+      await reload();
+    } catch (err) {
+      setDetailError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const eventInProgress = event?.status === "IN_PROGRESS";
   const rows = dashboard?.teams ?? [];
+
+  const detailStatus = new Map<string, VisitStatus>();
+  if (teamDetail) {
+    for (const v of teamDetail.visits) {
+      if (v.status === "VALID") detailStatus.set(v.stationId, "VALID");
+      else if (v.status === "SKIPPED" && detailStatus.get(v.stationId) !== "VALID")
+        detailStatus.set(v.stationId, "SKIPPED");
+    }
+  }
+  const detailStops = teamDetail
+    ? [...teamDetail.routeStops].sort((a, b) => a.position - b.position)
+    : [];
 
   const subTabs = (
     <div className="flex gap-2">
@@ -197,6 +276,13 @@ export function TeamsPage() {
                 <td className="py-2.5 pr-3">
                   <div className="flex justify-end gap-1.5">
                     <button
+                      onClick={() => void openManage({ id: t.teamId, name: t.team })}
+                      className="rounded-xl p-2 text-forest-600 hover:bg-forest-50"
+                      title="Postas y recuperación"
+                    >
+                      <ListChecks className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => openEdit({ id: t.teamId, eventId, name: t.team, username: t.username, active: t.active, createdAt: "", updatedAt: "" } as TeamItem)}
                       className="rounded-xl p-2 text-forest-600 hover:bg-forest-50"
                       title="Editar"
@@ -275,6 +361,120 @@ export function TeamsPage() {
           onConfirm={() => void doReset()}
           onClose={() => setConfirmReset(null)}
         />
+      )}
+
+      {manageTeam && (
+        <Modal title={`Postas de ${manageTeam.name}`} onClose={() => setManageTeam(null)}>
+          <div className="space-y-4">
+            {detailError && <Alert tone="error">{detailError}</Alert>}
+            <p className="text-sm font-semibold text-forest-600">
+              Si el equipo perdió el QR de una posta, podés marcarla como <strong>saltada</strong> (cuenta
+              como semi-completada). Nunca se reemplaza una posta ya completada.
+            </p>
+
+            {detailLoading && !teamDetail ? (
+              <p className="py-4 text-center text-sm font-semibold text-forest-500">Cargando postas…</p>
+            ) : detailStops.length === 0 ? (
+              <p className="py-4 text-center text-sm font-semibold text-forest-500">
+                Este equipo no tiene itinerario asignado.
+              </p>
+            ) : (
+              <>
+                {teamDetail && (
+                  <div className="flex items-center gap-2 text-xs font-bold text-forest-500">
+                    <span>{teamDetail.progress.completed}/{teamDetail.progress.total} resueltas</span>
+                    <span className="text-forest-300">·</span>
+                    <span className="text-amber-700">{teamDetail.progress.skipped} saltadas</span>
+                  </div>
+                )}
+                <ol className="space-y-2">
+                  {detailStops.map((stop, i) => {
+                    const status = detailStatus.get(stop.stationId);
+                    return (
+                      <li
+                        key={stop.id}
+                        className="flex items-center gap-2 rounded-2xl border border-beige-200 bg-beige-50 px-3 py-2"
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-forest-700 text-xs font-extrabold text-white">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-bold text-forest-900">{stop.station.name}</p>
+                          {status !== "VALID" && stop.station.rescuePhrase && (
+                            <p className="truncate text-xs font-semibold text-forest-500">
+                              Rescate: <span className="text-forest-700">{stop.station.rescuePhrase}</span>
+                            </p>
+                          )}
+                        </div>
+                        {status === "VALID" ? (
+                          <Badge tone="green">Completada</Badge>
+                        ) : status === "SKIPPED" ? (
+                          <>
+                            <Badge tone="orange">Saltada</Badge>
+                            <button
+                              onClick={() => void doUnskip(stop.stationId)}
+                              disabled={busy}
+                              className="rounded-lg p-1.5 text-forest-600 hover:bg-forest-100 disabled:opacity-50"
+                              title="Deshacer salto"
+                            >
+                              <Undo2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <Badge tone="gray">Pendiente</Badge>
+                            <button
+                              onClick={() => {
+                                setSkipTarget({ stationId: stop.stationId, stationName: stop.station.name });
+                                setSkipReason("");
+                              }}
+                              disabled={busy}
+                              className="inline-flex items-center gap-1 rounded-xl bg-clay-50 px-2.5 py-1.5 text-xs font-bold text-clay-700 hover:bg-clay-100 disabled:opacity-50"
+                              title="Saltar posta"
+                            >
+                              <SkipForward className="h-3.5 w-3.5" /> Saltar
+                            </button>
+                          </>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+                <button onClick={() => void refreshDetail()} disabled={detailLoading} className="btn-secondary w-full">
+                  Refrescar
+                </button>
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {skipTarget && manageTeam && (
+        <Modal
+          title={`Saltar "${skipTarget.stationName}"`}
+          onClose={() => setSkipTarget(null)}
+        >
+          <div className="space-y-4">
+            <p className="text-sm font-semibold text-forest-600">
+              La posta quedará marcada como <strong>saltada</strong> para {manageTeam.name}. El puntaje de
+              recorrido se recalcula automáticamente y la acción queda auditada.
+            </p>
+            <div>
+              <label className="label">Motivo (opcional)</label>
+              <textarea
+                className="input"
+                rows={2}
+                maxLength={300}
+                value={skipReason}
+                onChange={(e) => setSkipReason(e.target.value)}
+                placeholder="Ej.: el QR estaba deteriorado y los coordinadores autorizaron el salto."
+              />
+            </div>
+            <button onClick={() => void doSkip()} disabled={busy} className="btn-primary w-full">
+              <SkipForward className="h-5 w-5" /> Confirmar salto
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

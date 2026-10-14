@@ -44,6 +44,26 @@ export type TeamItem = {
   _count?: { visits: number };
 };
 
+export type TeamDetail = TeamItem & {
+  event: EventItem;
+  routeStops: {
+    id: string;
+    position: number;
+    stationId: string;
+    question: string | null;
+    questionAnswer: string | null;
+    station: { id: string; name: string; challengeType: ChallengeType; rescuePhrase: string | null };
+  }[];
+  visits: {
+    id: string;
+    stationId: string;
+    status: VisitStatus;
+    isCorrect: boolean | null;
+    visitedAt: string;
+  }[];
+  progress: Progress;
+};
+
 export type StationItem = {
   id: string;
   eventId: string;
