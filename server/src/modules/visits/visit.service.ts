@@ -1,9 +1,10 @@
-import type { ChallengeType } from "@prisma/client";
+import type { ChallengeType, VisitStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/utils/errors";
 import { computeProgress } from "@/modules/progress/progress.service";
 import { googleMapsDirectionsUrl } from "@/utils/geo";
+import { recomputeStationsScoreForTeam } from "@/modules/scoring/scoring.service";
 
 const normalize = (value: string) =>
   value
@@ -11,6 +12,10 @@ const normalize = (value: string) =>
     .toLocaleLowerCase("es")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+
+// Una posta queda "resuelta" cuando el equipo la supera (VALID) o la salta con
+// la frase de rescate (SKIPPED).
+const RESOLVED_STATUSES: VisitStatus[] = ["VALID", "SKIPPED"];
 
 type TeamCtx = {
   id: string;
@@ -25,6 +30,19 @@ async function loadTeamCtx(teamId: string): Promise<TeamCtx> {
   });
   if (!team) throw ApiError.unauthorized("Sesion de equipo invalida");
   return { id: team.id, eventId: team.eventId, eventStatus: team.event.status };
+}
+
+/** First route stop (by position) the team has not resolved yet. */
+async function findNextUnresolvedStop(
+  teamId: string,
+  resolved: Set<string>
+): Promise<{ stationId: string; position: number } | null> {
+  const stops = await prisma.routeStop.findMany({
+    where: { teamId },
+    orderBy: { position: "asc" },
+    select: { stationId: true, position: true },
+  });
+  return stops.find((s) => !resolved.has(s.stationId)) ?? null;
 }
 
 export type StationChallengeStatus =
@@ -107,16 +125,17 @@ export async function resolveStationChallenge(publicToken: string, teamId: strin
   if (!station.active) return { status: "INACTIVE" as StationChallengeStatus };
 
   const position = station.routeStops[0]?.position ?? null;
-  const validVisits = await prisma.stationVisit.findMany({
-    where: { teamId, status: "VALID" },
+  const resolvedVisits = await prisma.stationVisit.findMany({
+    where: { teamId, status: { in: RESOLVED_STATUSES } },
     select: { stationId: true },
   });
-  const completedSet = new Set(validVisits.map((v) => v.stationId));
+  const resolvedSet = new Set(resolvedVisits.map((v) => v.stationId));
 
-  if (completedSet.has(station.id)) {
+  if (resolvedSet.has(station.id)) {
     return { status: "COMPLETED" as StationChallengeStatus };
   }
-  if (position === null || position !== completedSet.size + 1) {
+  const nextStop = await findNextUnresolvedStop(teamId, resolvedSet);
+  if (position === null || nextStop === null || position !== nextStop.position) {
     return { status: "NOT_YOUR_NEXT" as StationChallengeStatus };
   }
 
@@ -172,6 +191,27 @@ export type RegisterResult =
       message: string;
     };
 
+export type SkipResult =
+  | {
+      result: "SKIPPED";
+      message: string;
+      skippedStation: { id: string; name: string; position: number };
+      nextStation: { id: string; name: string; position: number } | null;
+      remaining: number;
+    }
+  | {
+      result:
+        | "RESCUE_PHRASE_INVALID"
+        | "SKIP_DISABLED"
+        | "ALL_RESOLVED"
+        | "EVENT_NOT_READY"
+        | "EVENT_FINISHED"
+        | "EVENT_CANCELLED"
+        | "ALREADY_COMPLETED"
+        | "NOT_YOUR_NEXT";
+      message: string;
+    };
+
 const STATUS_MESSAGES: Record<string, string> = {
   VALID: "Pista superada",
   INCORRECT: "Respuesta incorrecta",
@@ -182,6 +222,10 @@ const STATUS_MESSAGES: Record<string, string> = {
   EVENT_CANCELLED: "El evento fue cancelado",
   INACTIVE: "Esta posta esta desactivada",
   WRONG_EVENT: "Esta posta no pertenece a tu evento",
+  SKIPPED: "Posta saltada",
+  RESCUE_PHRASE_INVALID: "Frase de rescate incorrecta",
+  SKIP_DISABLED: "Esta posta no permite salto. Avisa a la organizacion.",
+  ALL_RESOLVED: "Ya resolviste todas las postas del recorrido",
 } as const;
 
 function messageFor(status: string): string {
@@ -251,22 +295,28 @@ export async function registerVisit(
       if (!station.active)
         return { result: "INACTIVE" as const, message: messageFor("INACTIVE") };
 
-      const validVisits = await tx.stationVisit.findMany({
-        where: { teamId, status: "VALID" },
+      const resolvedVisits = await tx.stationVisit.findMany({
+        where: { teamId, status: { in: RESOLVED_STATUSES } },
         select: { stationId: true },
       });
-      const completedSet = new Set(validVisits.map((v) => v.stationId));
+      const resolvedSet = new Set(resolvedVisits.map((v) => v.stationId));
 
-      if (completedSet.has(station.id)) {
+      const route = await tx.routeStop.findMany({
+        where: { teamId },
+        orderBy: { position: "asc" },
+        include: { station: { select: { id: true, name: true } } },
+      });
+
+      if (resolvedSet.has(station.id)) {
         return { result: "ALREADY_COMPLETED" as const, message: messageFor("ALREADY_COMPLETED") };
       }
 
-      const stop = station.routeStops[0] ?? null;
-      const position = stop?.position ?? null;
-      if (position === null || position !== completedSet.size + 1) {
+      const nextStop = route.find((s) => !resolvedSet.has(s.stationId)) ?? null;
+      if (!nextStop || nextStop.stationId !== station.id) {
         return { result: "NOT_YOUR_NEXT" as const, message: messageFor("NOT_YOUR_NEXT") };
       }
 
+      const stop = station.routeStops[0] ?? null;
       const eff = resolveChallenge(stop, station);
       const { isCorrect } = evaluateAnswer(
         eff.challengeType,
@@ -325,20 +375,15 @@ export async function registerVisit(
         throw err;
       }
 
-      completedSet.add(station.id);
-      const route = await tx.routeStop.findMany({
-        where: { teamId },
-        orderBy: { position: "asc" },
-        include: { station: { select: { id: true, name: true } } },
-      });
-      const nextStop = route.find((s) => !completedSet.has(s.stationId)) ?? null;
+      resolvedSet.add(station.id);
+      const afterStop = route.find((s) => !resolvedSet.has(s.stationId)) ?? null;
       return {
         result: "VALID" as const,
         message: messageFor("VALID"),
-        nextStation: nextStop
-          ? { id: nextStop.stationId, name: nextStop.station.name, position: nextStop.position }
+        nextStation: afterStop
+          ? { id: afterStop.stationId, name: afterStop.station.name, position: afterStop.position }
           : null,
-        remaining: route.length - completedSet.size,
+        remaining: route.length - resolvedSet.size,
       } as const;
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
@@ -346,7 +391,119 @@ export async function registerVisit(
 
   const result = await withSerializableRetry(runTransaction);
 
+  if ((result as { result?: string }).result === "VALID") {
+    await recomputeStationsScoreForTeam(teamId).catch(() => undefined);
+  }
+
   return result as unknown as RegisterResult;
+}
+
+/**
+ * Skips the team's current (next unresolved) station when the QR cannot be
+ * scanned. Requires the rescue phrase configured for that station (dictated by
+ * the coordinators). The skipped station counts as semi-completed (half score).
+ */
+export async function skipStation(
+  phrase: string,
+  reason: string,
+  teamId: string
+): Promise<SkipResult> {
+  await loadTeamCtx(teamId);
+
+  const runTransaction = () =>
+    prisma.$transaction(
+      async (tx) => {
+        const team = await tx.team.findUnique({
+          where: { id: teamId },
+          include: { event: { select: { status: true } } },
+        });
+        if (!team) throw ApiError.unauthorized("Sesion de equipo invalida");
+
+        const eventStatus: string = team.event.status;
+        if (eventStatus === "PREPARED")
+          return { result: "EVENT_NOT_READY" as const, message: messageFor("EVENT_NOT_READY") };
+        if (eventStatus === "FINISHED")
+          return { result: "EVENT_FINISHED" as const, message: messageFor("EVENT_FINISHED") };
+        if (eventStatus === "CANCELLED")
+          return { result: "EVENT_CANCELLED" as const, message: messageFor("EVENT_CANCELLED") };
+
+        const route = await tx.routeStop.findMany({
+          where: { teamId },
+          orderBy: { position: "asc" },
+          include: { station: { select: { id: true, name: true, rescuePhrase: true } } },
+        });
+        const resolvedVisits = await tx.stationVisit.findMany({
+          where: { teamId, status: { in: RESOLVED_STATUSES } },
+          select: { stationId: true },
+        });
+        const resolvedSet = new Set(resolvedVisits.map((v) => v.stationId));
+
+        const nextStop = route.find((s) => !resolvedSet.has(s.stationId)) ?? null;
+        if (!nextStop) {
+          return { result: "ALL_RESOLVED" as const, message: messageFor("ALL_RESOLVED") };
+        }
+
+        const station = nextStop.station;
+        const configured = station.rescuePhrase?.trim();
+        if (!configured) {
+          return { result: "SKIP_DISABLED" as const, message: messageFor("SKIP_DISABLED") };
+        }
+        if (normalize(phrase) !== normalize(configured)) {
+          return {
+            result: "RESCUE_PHRASE_INVALID" as const,
+            message: messageFor("RESCUE_PHRASE_INVALID"),
+          };
+        }
+
+        const key = `${teamId}:${station.id}`;
+        try {
+          await tx.stationVisit.create({
+            data: {
+              eventId: team.eventId,
+              teamId,
+              stationId: station.id,
+              status: "SKIPPED",
+              isCorrect: false,
+              submittedAnswer: null,
+              skipReason: reason ? reason.slice(0, 300) : null,
+              validKey: key,
+            },
+          });
+        } catch (err) {
+          if (
+            err instanceof Prisma.PrismaClientKnownRequestError &&
+            err.code === "P2002"
+          ) {
+            return {
+              result: "ALREADY_COMPLETED" as const,
+              message: messageFor("ALREADY_COMPLETED"),
+            } as const;
+          }
+          throw err;
+        }
+
+        resolvedSet.add(station.id);
+        const afterStop = route.find((s) => !resolvedSet.has(s.stationId)) ?? null;
+        return {
+          result: "SKIPPED" as const,
+          message: messageFor("SKIPPED"),
+          skippedStation: { id: station.id, name: station.name, position: nextStop.position },
+          nextStation: afterStop
+            ? { id: afterStop.stationId, name: afterStop.station.name, position: afterStop.position }
+            : null,
+          remaining: route.length - resolvedSet.size,
+        } as const;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+
+  const result = await withSerializableRetry(runTransaction);
+
+  if ((result as { result?: string }).result === "SKIPPED") {
+    await recomputeStationsScoreForTeam(teamId).catch(() => undefined);
+  }
+
+  return result as unknown as SkipResult;
 }
 
 /** Progress snapshot for the team passport, from the server. */
@@ -372,6 +529,9 @@ export async function teamPassport(teamId: string) {
       const valid = team.visits.find(
         (v) => v.status === "VALID" && v.stationId === stop.stationId
       );
+      const skipped = team.visits.find(
+        (v) => v.status === "SKIPPED" && v.stationId === stop.stationId
+      );
       const lastAttempt = team.visits.find((v) => v.stationId === stop.stationId);
       const { latitude, longitude } = stop.station;
       const hasCoords = latitude !== null && longitude !== null;
@@ -382,6 +542,8 @@ export async function teamPassport(teamId: string) {
         challengeType: resolveChallenge(stop, stop.station).challengeType,
         completed: Boolean(valid),
         completedAt: valid?.visitedAt.toISOString() ?? null,
+        skipped: Boolean(skipped),
+        skippedAt: skipped?.visitedAt.toISOString() ?? null,
         lastAttemptAt: lastAttempt?.visitedAt.toISOString() ?? null,
         attempts: team.visits.filter((v) => v.stationId === stop.stationId).length,
         latitude,

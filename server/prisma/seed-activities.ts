@@ -27,7 +27,9 @@ const ACTIVITIES: SeedActivity[] = [
     name: "JOTA-JOTI Ypacaraí 2026",
     description: "Caminata de orientación por el recorrido de postas y la ciudad.",
     scoringMethod: "STATIONS",
-    maxScore: null,
+    // Puntaje maximo con el que se crea la actividad de recorrido: el sistema
+    // reparte estos puntos entre las postas resueltas (media por cada saltada).
+    maxScore: 80,
     status: "PENDING",
   },
   {
@@ -77,9 +79,9 @@ const ACTIVITIES: SeedActivity[] = [
 /**
  * Carga las actividades del ranking SIN borrar nada: crea las faltantes
  * (emparejando por nombre o por posicion) y actualiza metadatos (descripcion,
- * metodo, puntaje maximo y orden) de las existentes. Respeta los cambios de
- * nombre, `active`, `status` y `published` que haya hecho un administrador, y
- * nunca toca `TeamActivityScore`. Idempotente.
+ * metodo y orden) de las existentes. Respeta los cambios de nombre, `active`,
+ * `status`, `published` y `maxScore` que haya hecho un administrador, y nunca
+ * toca `TeamActivityScore`. Idempotente.
  */
 async function main() {
   const event =
@@ -123,20 +125,23 @@ async function main() {
       continue;
     }
 
-    // No se pisa el nombre (editable), ni status/published/active.
+    // No se pisa el nombre (editable), ni status/published/active, ni un
+    // maxScore ya definido. Solo se completa el maxScore cuando esta en null
+    // (actividades creadas antes de configurar el valor por defecto).
+    const fillMaxScore = row.maxScore === null && def.maxScore !== null;
     const stale =
       row.description !== def.description ||
       row.scoringMethod !== def.scoringMethod ||
-      row.maxScore !== def.maxScore ||
-      row.position !== position;
+      row.position !== position ||
+      fillMaxScore;
     if (stale) {
       await prisma.activity.update({
         where: { id: row.id },
         data: {
           description: def.description,
           scoringMethod: def.scoringMethod,
-          maxScore: def.maxScore,
           position,
+          ...(fillMaxScore ? { maxScore: def.maxScore } : {}),
         },
       });
       updated++;

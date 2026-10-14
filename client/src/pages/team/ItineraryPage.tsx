@@ -46,18 +46,22 @@ export function ItineraryPage() {
                 className={`flex items-center gap-3 rounded-2xl border px-3.5 py-3 ${
                   status === "COMPLETED"
                     ? "border-forest-200 bg-forest-50"
-                    : status === "NEXT"
-                      ? "border-clay-400 bg-clay-50 shadow-card"
-                      : "border-beige-200 bg-white"
+                    : status === "SKIPPED"
+                      ? "border-amber-300 bg-amber-50"
+                      : status === "NEXT"
+                        ? "border-clay-400 bg-clay-50 shadow-card"
+                        : "border-beige-200 bg-white"
                 }`}
               >
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-extrabold ${
                     status === "COMPLETED"
                       ? "bg-forest-600 text-white"
-                      : status === "NEXT"
-                        ? "bg-clay-500 text-white"
-                        : "bg-beige-200 text-forest-800"
+                      : status === "SKIPPED"
+                        ? "bg-amber-600 text-white"
+                        : status === "NEXT"
+                          ? "bg-clay-500 text-white"
+                          : "bg-beige-200 text-forest-800"
                   }`}
                 >
                   {stop.position}
@@ -69,6 +73,9 @@ export function ItineraryPage() {
                   )}
                   {status === "COMPLETED" && (
                     <p className="text-xs font-bold uppercase tracking-wide text-forest-600">Completada</p>
+                  )}
+                  {status === "SKIPPED" && (
+                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Saltada</p>
                   )}
                   {!hasCoords && (
                     <p className="text-xs font-semibold text-forest-400">Sin ubicación en el mapa</p>

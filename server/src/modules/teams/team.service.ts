@@ -1,6 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/utils/errors";
 import { hashPassword } from "@/modules/auth/auth.service";
+import { recomputeStationsScoreForTeam } from "@/modules/scoring/scoring.service";
 
 const usernameTakenError = (username: string) =>
   ApiError.conflict(
@@ -179,6 +181,9 @@ export async function setTeamRoute(
     },
   });
 
+  // El puntaje de recorrido depende de la cantidad de postas: recalcular.
+  await recomputeStationsScoreForTeam(teamId).catch(() => undefined);
+
   return { count: route.count };
 }
 
@@ -211,5 +216,110 @@ export async function resetTeamProgress(
     },
   });
 
+  // El recorrido vuelve a cero: recalcular el puntaje de postas.
+  await recomputeStationsScoreForTeam(teamId).catch(() => undefined);
+
   return { deletedVisits: previous };
+}
+
+/**
+ * Admin override: marks a station as skipped for a team (e.g. the QR was lost
+ * and coordinators authorized the skip off-line). Never overrides a VALID
+ * visit. Recomputes the STATIONS score.
+ */
+export async function skipTeamStation(
+  teamId: string,
+  stationId: string,
+  reason: string,
+  actorType: string,
+  actorId?: string
+) {
+  const team = await prisma.team.findUnique({ where: { id: teamId } });
+  if (!team) throw ApiError.notFound("Equipo no encontrado");
+  const station = await prisma.station.findUnique({ where: { id: stationId } });
+  if (!station) throw ApiError.notFound("Posta no encontrada");
+  if (station.eventId !== team.eventId) {
+    throw ApiError.badRequest("La posta no pertenece al evento del equipo");
+  }
+
+  const existing = await prisma.stationVisit.findFirst({
+    where: { teamId, stationId, status: { in: ["VALID", "SKIPPED"] } },
+    select: { status: true },
+  });
+  if (existing?.status === "VALID") {
+    throw ApiError.conflict("El equipo ya completo esta posta");
+  }
+  if (existing?.status === "SKIPPED") {
+    return { skipped: true, alreadySkipped: true };
+  }
+
+  try {
+    await prisma.stationVisit.create({
+      data: {
+        eventId: team.eventId,
+        teamId,
+        stationId,
+        status: "SKIPPED",
+        isCorrect: false,
+        skipReason: reason ? reason.slice(0, 300) : null,
+        validKey: `${teamId}:${stationId}`,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return { skipped: true, alreadySkipped: true };
+    }
+    throw err;
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      action: "STATION_SKIPPED",
+      entity: "StationVisit",
+      entityId: team.id,
+      actorType,
+      actorId: actorId ?? null,
+      userId: actorType === "admin" ? actorId ?? null : null,
+      teamId,
+      eventId: team.eventId,
+      details: JSON.stringify({ stationId, reason: reason || null, source: "admin" }),
+    },
+  });
+
+  await recomputeStationsScoreForTeam(teamId).catch(() => undefined);
+  return { skipped: true, alreadySkipped: false };
+}
+
+/** Admin override: undoes a skipped station for a team and recomputes score. */
+export async function unskipTeamStation(
+  teamId: string,
+  stationId: string,
+  actorType: string,
+  actorId?: string
+) {
+  const team = await prisma.team.findUnique({ where: { id: teamId } });
+  if (!team) throw ApiError.notFound("Equipo no encontrado");
+
+  const deleted = await prisma.stationVisit.deleteMany({
+    where: { teamId, stationId, status: "SKIPPED" },
+  });
+
+  if (deleted.count > 0) {
+    await prisma.auditLog.create({
+      data: {
+        action: "STATION_UNSKIPPED",
+        entity: "StationVisit",
+        entityId: team.id,
+        actorType,
+        actorId: actorId ?? null,
+        userId: actorType === "admin" ? actorId ?? null : null,
+        teamId,
+        eventId: team.eventId,
+        details: JSON.stringify({ stationId }),
+      },
+    });
+    await recomputeStationsScoreForTeam(teamId).catch(() => undefined);
+  }
+
+  return { removed: deleted.count };
 }

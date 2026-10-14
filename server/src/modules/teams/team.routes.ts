@@ -8,6 +8,7 @@ import {
   createTeamSchema,
   resetProgressSchema,
   setRouteSchema,
+  teamSkipSchema,
   updateTeamSchema,
 } from "@/modules/teams/team.validators";
 import * as teamService from "@/modules/teams/team.service";
@@ -100,4 +101,24 @@ teamRoutes.post("/:id/reset-progress", csrfProtection, asyncHandler(async (req, 
     { teamId: req.params.id }
   );
   res.json({ ok: true, deletedVisits: result.deletedVisits });
+}));
+
+teamRoutes.post("/:id/skip-station", csrfProtection, asyncHandler(async (req, res) => {
+  const { stationId, reason } = teamSkipSchema.parse(req.body);
+  const admin = getPrincipal(req)!;
+  const result = await teamService.skipTeamStation(
+    req.params.id,
+    stationId,
+    reason,
+    "admin",
+    admin.id
+  );
+  res.json({ ok: true, ...result });
+}));
+
+teamRoutes.post("/:id/unskip-station", csrfProtection, asyncHandler(async (req, res) => {
+  const { stationId } = teamSkipSchema.parse(req.body);
+  const admin = getPrincipal(req)!;
+  const result = await teamService.unskipTeamStation(req.params.id, stationId, "admin", admin.id);
+  res.json({ ok: true, ...result });
 }));

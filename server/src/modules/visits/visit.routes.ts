@@ -2,10 +2,11 @@ import { Router } from "express";
 import { asyncHandler } from "@/utils/asyncHandler";
 import { requireTeam } from "@/middleware/auth";
 import { csrfProtection } from "@/middleware/csrf";
-import { registerVisitSchema } from "@/modules/visits/visit.validators";
+import { registerVisitSchema, skipStationSchema } from "@/modules/visits/visit.validators";
 import {
   registerVisit,
   resolveStationChallenge,
+  skipStation,
 } from "@/modules/visits/visit.service";
 import { getPrincipal } from "@/middleware/auth";
 
@@ -25,5 +26,16 @@ visitRoutes.post("/", csrfProtection, asyncHandler(async (req, res) => {
   const { publicToken, answer } = registerVisitSchema.parse(req.body);
   const teamId = getPrincipal(req)!.id;
   const result = await registerVisit(publicToken, answer, teamId);
+  res.json(result);
+}));
+
+/**
+ * Skips the team's current posta when the QR cannot be scanned. Requires the
+ * rescue phrase configured for that station.
+ */
+visitRoutes.post("/skip", csrfProtection, asyncHandler(async (req, res) => {
+  const { phrase, reason } = skipStationSchema.parse(req.body);
+  const teamId = getPrincipal(req)!.id;
+  const result = await skipStation(phrase, reason, teamId);
   res.json(result);
 }));

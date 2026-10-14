@@ -4,7 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { PassportStop } from "@/api/types";
 
-export type StopStatus = "COMPLETED" | "NEXT" | "PENDING";
+export type StopStatus = "COMPLETED" | "SKIPPED" | "NEXT" | "PENDING";
 
 export function stopStatus(
   stop: PassportStop,
@@ -12,18 +12,21 @@ export function stopStatus(
   done: boolean
 ): StopStatus {
   if (stop.completed) return "COMPLETED";
+  if (stop.skipped) return "SKIPPED";
   if (!done && nextPosition !== null && stop.position === nextPosition) return "NEXT";
   return "PENDING";
 }
 
 const STATUS_COLOR: Record<StopStatus, string> = {
   COMPLETED: "#15803d",
+  SKIPPED: "#b45309",
   NEXT: "#c2410c",
   PENDING: "#a8a29e",
 };
 
 const STATUS_LABEL: Record<StopStatus, string> = {
   COMPLETED: "Completada",
+  SKIPPED: "Saltada",
   NEXT: "Próxima",
   PENDING: "Pendiente",
 };
@@ -147,6 +150,7 @@ export function ItineraryMap({
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-3 text-xs font-bold">
         <LegendDot color={STATUS_COLOR.COMPLETED} label="Completada" />
+        <LegendDot color={STATUS_COLOR.SKIPPED} label="Saltada" />
         <LegendDot color={STATUS_COLOR.NEXT} label="Próxima" />
         <LegendDot color={STATUS_COLOR.PENDING} label="Pendiente" />
         <LegendDot color="#166534" label="Inicio (A)" square />

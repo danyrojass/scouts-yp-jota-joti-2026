@@ -42,7 +42,14 @@ export async function createAdmin(username = "root", password = "s3cret-admin") 
 
 export type Fixture = {
   eventId: string;
-  stations: { id: string; token: string; name: string; challengeType: string; expectedAnswer: string | null }[];
+  stations: {
+    id: string;
+    token: string;
+    name: string;
+    challengeType: string;
+    expectedAnswer: string | null;
+    rescuePhrase: string | null;
+  }[];
   teams: { id: string; name: string; username: string; password: string; route: string[] }[];
 };
 
@@ -60,10 +67,10 @@ export async function seedFixture(teamsSeed: {
   });
 
   const stationDefs = [
-    { name: "Posta Alpha", type: "CODE", answer: "tacuru", instructions: "Escribi la clave" },
-    { name: "Posta Beta", type: "QUESTION", answer: "siete", instructions: "Cuantas son?" },
-    { name: "Posta Gamma", type: "CONFIRMATION", answer: null, instructions: "Confirmá tu paso" },
-    { name: "Posta Delta", type: "AUTO", answer: "clave-delta", instructions: "Respondé lo que veas" },
+    { name: "Posta Alpha", type: "CODE", answer: "tacuru", instructions: "Escribi la clave", rescue: "rescate-alpha" },
+    { name: "Posta Beta", type: "QUESTION", answer: "siete", instructions: "Cuantas son?", rescue: null },
+    { name: "Posta Gamma", type: "CONFIRMATION", answer: null, instructions: "Confirmá tu paso", rescue: "rescate-gamma" },
+    { name: "Posta Delta", type: "AUTO", answer: "clave-delta", instructions: "Respondé lo que veas", rescue: null },
   ];
 
   const stations: Fixture["stations"] = [];
@@ -76,6 +83,7 @@ export async function seedFixture(teamsSeed: {
         challengeType: def.type as never,
         instructions: def.instructions,
         expectedAnswer: def.answer,
+        rescuePhrase: def.rescue,
         autoAcceptAny: false,
       },
     });
@@ -85,6 +93,7 @@ export async function seedFixture(teamsSeed: {
       name: def.name,
       challengeType: def.type,
       expectedAnswer: def.answer,
+      rescuePhrase: def.rescue,
     });
   }
 

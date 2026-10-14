@@ -64,7 +64,7 @@ export function PassportPage() {
 
   const { team, event, progress, stops, history } = data;
   const eventBadge = EVENT_STATUS[event.status] ?? { label: event.status, tone: "gray" as const };
-  const nextStop = stops.find((s) => !s.completed) ?? null;
+  const nextStop = stops.find((s) => !s.completed && !s.skipped) ?? null;
 
   return (
     <div className="space-y-4">
@@ -104,6 +104,12 @@ export function PassportPage() {
             </p>
           </div>
           <ProgressBar value={progress.completed} max={progress.total} />
+          {progress.skipped > 0 && (
+            <p className="mt-1.5 text-xs font-semibold text-amber-700">
+              {progress.valid} superada{progress.valid === 1 ? "" : "s"} ·{" "}
+              {progress.skipped} saltada{progress.skipped === 1 ? "" : "s"}
+            </p>
+          )}
         </div>
 
         {progress.done && (
@@ -142,24 +148,34 @@ export function PassportPage() {
               className={`flex items-start gap-3 rounded-2xl border px-3.5 py-3 ${
                 stop.completed
                   ? "border-forest-200 bg-forest-50"
-                  : stop.stationId === progress.nextStationId
-                    ? "border-clay-400 bg-clay-50 shadow-card"
-                    : "border-beige-200 bg-white"
+                  : stop.skipped
+                    ? "border-amber-300 bg-amber-50"
+                    : stop.stationId === progress.nextStationId
+                      ? "border-clay-400 bg-clay-50 shadow-card"
+                      : "border-beige-200 bg-white"
               }`}
             >
               <span
                 className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
-                  stop.completed ? "bg-forest-600 text-white" : "bg-beige-200 text-forest-800"
+                  stop.completed
+                    ? "bg-forest-600 text-white"
+                    : stop.skipped
+                      ? "bg-amber-600 text-white"
+                      : "bg-beige-200 text-forest-800"
                 }`}
               >
                 {stop.position}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-forest-900">{stop.name}</p>
-                <p className="text-xs font-semibold text-forest-500">{TYPE_LABEL[stop.challengeType]}</p>
+                <p className="text-xs font-semibold text-forest-500">
+                  {stop.skipped ? "Saltada" : TYPE_LABEL[stop.challengeType]}
+                </p>
               </div>
               {stop.completed ? (
                 <CheckCircle2 className="h-6 w-6 shrink-0 text-forest-600" />
+              ) : stop.skipped ? (
+                <Circle className="h-6 w-6 shrink-0 text-amber-500" />
               ) : (
                 <Circle className="h-6 w-6 shrink-0 text-beige-300" />
               )}
@@ -188,6 +204,8 @@ export function PassportPage() {
                 </div>
                 {v.status === "VALID" ? (
                   <Badge tone="green">Completada</Badge>
+                ) : v.status === "SKIPPED" ? (
+                  <Badge tone="orange">Saltada</Badge>
                 ) : (
                   <Badge tone="red">Fallida (intento {v.attemptNumber})</Badge>
                 )}

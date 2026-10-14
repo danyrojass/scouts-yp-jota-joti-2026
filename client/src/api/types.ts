@@ -16,7 +16,7 @@ export type Principal =
 
 export type EventStatus = "PREPARED" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
 export type ChallengeType = "CODE" | "QUESTION" | "CONFIRMATION" | "AUTO";
-export type VisitStatus = "VALID" | "INCORRECT";
+export type VisitStatus = "VALID" | "INCORRECT" | "SKIPPED";
 
 export type AuthResult = { principal: Principal; csrfToken: string | null };
 
@@ -54,6 +54,7 @@ export type StationItem = {
   instructions: string | null;
   displayedCode: string | null;
   expectedAnswer?: string | null;
+  rescuePhrase?: string | null;
   autoAcceptAny: boolean;
   active: boolean;
   latitude: number | null;
@@ -65,12 +66,15 @@ export type StationItem = {
 export type Progress = {
   total: number;
   completed: number;
+  valid: number;
+  skipped: number;
   done: boolean;
   nextStationId: string | null;
   nextPosition: number | null;
   startAt: string | null;
   finishAt: string | null;
   visitedStations: string[];
+  resolvedStations: string[];
 };
 
 export type PassportStop = {
@@ -80,6 +84,8 @@ export type PassportStop = {
   challengeType: ChallengeType;
   completed: boolean;
   completedAt: string | null;
+  skipped: boolean;
+  skippedAt: string | null;
   lastAttemptAt: string | null;
   attempts: number;
   latitude: number | null;
@@ -133,6 +139,27 @@ export type VisitResult =
       message: string;
     };
 
+export type SkipResult =
+  | {
+      result: "SKIPPED";
+      message: string;
+      skippedStation: { id: string; name: string; position: number };
+      nextStation: { id: string; name: string; position: number } | null;
+      remaining: number;
+    }
+  | {
+      result:
+        | "RESCUE_PHRASE_INVALID"
+        | "SKIP_DISABLED"
+        | "ALL_RESOLVED"
+        | "EVENT_NOT_READY"
+        | "EVENT_FINISHED"
+        | "EVENT_CANCELLED"
+        | "ALREADY_COMPLETED"
+        | "NOT_YOUR_NEXT";
+      message: string;
+    };
+
 export type Dashboard = {
   event: { id: string; name: string; status: EventStatus; date: string };
   counts: {
@@ -152,6 +179,7 @@ export type Dashboard = {
     active: boolean;
     totalStops: number;
     completed: number;
+    skipped: number;
     done: boolean;
     nextStation: string | null;
     lastActivity: string | null;
@@ -371,6 +399,25 @@ export type TeamScoreDetail = {
   activitiesCount: number;
   pendingCount: number;
   complete: boolean;
+};
+
+export type MemberRole = "SCOUT" | "DIRIGENTE" | "OTRO";
+
+export type MemberItem = {
+  id: string;
+  eventId: string;
+  teamId: string | null;
+  firstName: string;
+  lastName: string;
+  document: string | null;
+  birthDate: string | null;
+  role: MemberRole;
+  phone: string | null;
+  notes: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  team: { id: string; name: string } | null;
 };
 
 export type ApiErrorBody = {

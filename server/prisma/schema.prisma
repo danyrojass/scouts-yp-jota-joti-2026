@@ -34,6 +34,16 @@ enum ChallengeType {
 enum VisitStatus {
   VALID
   INCORRECT
+  // La posta se resolvio sin escanear el QR: el equipo ingreso la frase de
+  // rescate (coordinadores). Cuenta como semi-completada (mitad de puntos).
+  SKIPPED
+}
+
+// Rol de un integrante del evento (lista de beneficiarios).
+enum MemberRole {
+  SCOUT
+  DIRIGENTE
+  OTRO
 }
 
 // Estado de evaluacion de una actividad del ranking general.
@@ -87,6 +97,7 @@ model Event {
   safariFinds SafariFind[]
   activities        Activity[]
   teamActivityScores TeamActivityScore[]
+  members           Member[]
 
   @@index([status])
 }
@@ -107,6 +118,7 @@ model Team {
   safariFinds SafariFind[]
   auditLogs  AuditLog[]
   activityScores TeamActivityScore[]
+  members    Member[]
 
   @@index([eventId])
   @@unique([eventId, name])
@@ -123,6 +135,10 @@ model Station {
   displayedCode  String?
   expectedAnswer String?
   autoAcceptAny  Boolean       @default(false)
+  // Frase secreta que los coordinadores dictan por radio/WhatsApp para que un
+  // equipo pueda saltar esta posta cuando el QR no aparece. Nunca se expone al
+  // cliente del equipo; solo se compara en el servidor.
+  rescuePhrase   String?
   active         Boolean       @default(true)
   // Optional geographic position, loaded by an admin (form or CSV). NULL means
   // the station has no coordinates yet and cannot be drawn on the map.
@@ -171,10 +187,13 @@ model StationVisit {
   isCorrect       Boolean?
   status          VisitStatus
   attemptNumber   Int         @default(1)
-  // Set only when the visit is VALID: "<teamId>:<stationId>". Postgres allows
-  // multiple NULLs in a unique column, so this enforces at most one VALID
-  // visit per team+station while allowing unlimited incorrect attempts.
+  // Set when the visit RESOLVES the station (VALID or SKIPPED):
+  // "<teamId>:<stationId>". Postgres allows multiple NULLs in a unique column,
+  // so this enforces at most one resolution per team+station while allowing
+  // unlimited incorrect attempts.
   validKey        String?     @unique
+  // Optional note when the team skipped the posta (status = SKIPPED).
+  skipReason      String?
 
   event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -317,4 +336,31 @@ model TeamActivityScore {
   @@unique([teamId, activityId])
   @@index([eventId])
   @@index([activityId])
+}
+
+// Integrante del evento (lista de beneficiarios). No tiene cuenta ni login:
+// es un dato administrativo. Puede pertenecer a un equipo o quedar sin asignar.
+model Member {
+  id        String     @id @default(cuid())
+  eventId   String
+  teamId    String?
+  firstName String
+  lastName  String
+  // Documento / cedula. Unico por evento cuando esta presente (varios NULL
+  // permitidos en Postgres).
+  document  String?
+  birthDate DateTime?
+  role      MemberRole @default(SCOUT)
+  phone     String?
+  notes     String?
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  team  Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([eventId])
+  @@index([teamId])
+  @@unique([eventId, document])
 }

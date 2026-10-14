@@ -1,34 +1,78 @@
 import { NavLink } from "react-router-dom";
-import { CalendarDays, Compass, Route, Printer, Download, LayoutDashboard, Binoculars, ListChecks, Trophy } from "lucide-react";
+import {
+  Compass,
+  Route,
+  Printer,
+  LayoutDashboard,
+  Binoculars,
+  ListChecks,
+  Trophy,
+  Users,
+  MapPin,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const tabs = [
-  { to: "pizarra", label: "Pizarra", icon: LayoutDashboard },
-  { to: "equipos", label: "Equipos", icon: Compass },
-  { to: "postas", label: "Postas", icon: CalendarDays },
-  { to: "itinerarios", label: "Itinerarios", icon: Route },
-  { to: "safari", label: "Safari", icon: Binoculars },
-  { to: "actividades", label: "Actividades", icon: ListChecks },
-  { to: "ranking", label: "Ranking", icon: Trophy },
-  { to: "impresion", label: "QR / Imprimir", icon: Printer },
-  { to: "resultados", label: "Resultados", icon: Download },
+type Tab = { to: string; label: string; icon: LucideIcon };
+type Group = { label: string; tabs: Tab[] };
+
+// Agrupación pensada para mobile: bloques cortos con etiqueta, en vez de una
+// fila única de 9 pestañas. "Equipos y puntaje" contiene las sub-pestañas
+// Equipos | Ranking.
+const groups: Group[] = [
+  {
+    label: "Resumen",
+    tabs: [{ to: "pizarra", label: "Pizarra", icon: LayoutDashboard }],
+  },
+  {
+    label: "Participantes",
+    tabs: [
+      { to: "equipos", label: "Equipos y puntaje", icon: Compass },
+      { to: "integrantes", label: "Integrantes", icon: Users },
+    ],
+  },
+  {
+    label: "Recorrido",
+    tabs: [
+      { to: "postas", label: "Postas", icon: MapPin },
+      { to: "itinerarios", label: "Itinerarios", icon: Route },
+      { to: "impresion", label: "QR / Imprimir", icon: Printer },
+    ],
+  },
+  {
+    label: "Puntuación",
+    tabs: [
+      { to: "actividades", label: "Actividades", icon: ListChecks },
+      { to: "safari", label: "Safari", icon: Binoculars },
+      { to: "resultados", label: "Resultados", icon: Trophy },
+    ],
+  },
 ];
 
 export function AdminEventTabs({ eventId }: { eventId: string }) {
   return (
-    <nav className="scrollbar-none -mx-4 mb-5 flex gap-2 overflow-x-auto px-4">
-      {tabs.map(({ to, label, icon: Icon }) => (
-        <NavLink
-          key={to}
-          to={`/admin/eventos/${eventId}/${to}`}
-          className={({ isActive }) =>
-            `flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
-              isActive ? "bg-forest-700 text-white" : "bg-white text-forest-700 hover:bg-forest-50"
-            }`
-          }
-        >
-          <Icon className="h-4 w-4" />
-          {label}
-        </NavLink>
+    <nav className="mb-5 space-y-3">
+      {groups.map((group) => (
+        <div key={group.label}>
+          <p className="mb-1.5 px-1 text-xs font-bold uppercase tracking-wider text-forest-400">
+            {group.label}
+          </p>
+          <div className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4">
+            {group.tabs.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={`/admin/eventos/${eventId}/${to}`}
+                className={({ isActive }) =>
+                  `flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+                    isActive ? "bg-forest-700 text-white" : "bg-white text-forest-700 hover:bg-forest-50"
+                  }`
+                }
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </NavLink>
+            ))}
+          </div>
+        </div>
       ))}
     </nav>
   );

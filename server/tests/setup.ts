@@ -15,6 +15,7 @@ async function wipeDb() {
     prisma.stationVisit.deleteMany(),
     prisma.auditLog.deleteMany(),
     prisma.routeStop.deleteMany(),
+    prisma.member.deleteMany(),
     prisma.team.deleteMany(),
     prisma.station.deleteMany(),
     prisma.event.deleteMany(),

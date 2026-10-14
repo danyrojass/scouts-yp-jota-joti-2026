@@ -70,6 +70,7 @@ export async function createStation(data: {
   instructions?: string | null;
   displayedCode?: string | null;
   expectedAnswer?: string | null;
+  rescuePhrase?: string | null;
   autoAcceptAny: boolean;
   active: boolean;
   latitude?: number | null;
@@ -91,6 +92,7 @@ export async function createStation(data: {
       displayedCode: data.challengeType === "CODE" ? data.displayedCode : null,
       expectedAnswer:
         data.challengeType === "CONFIRMATION" ? null : data.expectedAnswer,
+      rescuePhrase: data.rescuePhrase?.trim() || null,
       autoAcceptAny: data.challengeType === "AUTO" ? data.autoAcceptAny : false,
       active: data.active,
       latitude: data.latitude ?? null,
@@ -117,6 +119,7 @@ export async function updateStation(id: string, data: {
   instructions?: string | null;
   displayedCode?: string | null;
   expectedAnswer?: string | null;
+  rescuePhrase?: string | null;
   autoAcceptAny?: boolean;
   active?: boolean;
   latitude?: number | null;
@@ -130,6 +133,8 @@ export async function updateStation(id: string, data: {
     challengeType: data.challengeType ?? station.challengeType,
     instructions: data.instructions !== undefined ? data.instructions : station.instructions,
     expectedAnswer: data.expectedAnswer !== undefined ? data.expectedAnswer : station.expectedAnswer,
+    rescuePhrase:
+      data.rescuePhrase !== undefined ? data.rescuePhrase?.trim() || null : station.rescuePhrase,
     autoAcceptAny: data.autoAcceptAny !== undefined ? data.autoAcceptAny : station.autoAcceptAny,
     displayedCode: data.displayedCode !== undefined ? data.displayedCode : station.displayedCode,
     active: data.active !== undefined ? data.active : station.active,

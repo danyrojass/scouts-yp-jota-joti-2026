@@ -27,6 +27,7 @@ const stationSchema = z
     instructions: z.string().trim().max(2000).optional().nullable(),
     displayedCode: z.string().trim().max(200).optional().nullable(),
     expectedAnswer: z.string().trim().max(500).optional().nullable(),
+    rescuePhrase: z.string().trim().max(200).optional().nullable(),
     autoAcceptAny: z.boolean(),
     active: z.boolean(),
     latitude: z
@@ -103,7 +104,7 @@ export function StationsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    reset({ challengeType: "CODE", autoAcceptAny: false, active: true, latitude: "", longitude: "" });
+    reset({ challengeType: "CODE", autoAcceptAny: false, active: true, latitude: "", longitude: "", rescuePhrase: "" });
     setActionError(null);
     setFormOpen(true);
   };
@@ -117,6 +118,7 @@ export function StationsPage() {
       instructions: s.instructions ?? "",
       displayedCode: s.displayedCode ?? "",
       expectedAnswer: s.expectedAnswer ?? "",
+      rescuePhrase: s.rescuePhrase ?? "",
       autoAcceptAny: s.autoAcceptAny,
       active: s.active,
       latitude: s.latitude != null ? String(s.latitude) : "",
@@ -255,6 +257,7 @@ export function StationsPage() {
                     <h3 className="font-display text-lg font-bold text-forest-900">{s.name}</h3>
                     <Badge tone={tb.tone}>{tb.label}</Badge>
                     {s.active ? <Badge tone="green">Activa</Badge> : <Badge tone="red">Inactiva</Badge>}
+                    {s.rescuePhrase && <Badge tone="orange">Con rescate</Badge>}
                   </div>
                   {s.description && <p className="mt-0.5 text-sm font-semibold text-forest-600">{s.description}</p>}
                   <p className="mt-1 truncate font-mono text-xs text-forest-500">/posta/{s.publicToken}</p>
@@ -364,6 +367,22 @@ export function StationsPage() {
                 Aceptar cualquier respuesta no vacía
               </label>
             )}
+            <div>
+              <label className="label">Frase de rescate (secreto del servidor)</label>
+              <input
+                className="input"
+                {...register("rescuePhrase")}
+                placeholder="Frase que dicta la organización si falta el QR"
+                autoComplete="off"
+              />
+              <p className="mt-1 text-xs font-semibold text-forest-500">
+                Si el QR no se puede escanear, el equipo puede saltar la posta escribiendo esta
+                frase. Dejala vacía para deshabilitar el salto en esta posta.
+              </p>
+              {errors.rescuePhrase && (
+                <p className="mt-1 text-sm font-semibold text-red-600">{errors.rescuePhrase.message}</p>
+              )}
+            </div>
             <label className="flex items-center gap-2 font-bold text-forest-800">
               <input type="checkbox" {...register("active")} className="h-4 w-4 accent-forest-700" />
               Posta activa

@@ -55,6 +55,8 @@ export async function getDashboard(eventId: string) {
       username: team.username,
       totalStops: progress.total,
       completed: progress.completed,
+      skipped: progress.skipped,
+      valid: progress.valid,
       done: progress.done,
       nextStation: nextStationId ? (stationNames.get(nextStationId) ?? null) : null,
       lastActivity: lastVisit ? lastVisit.visitedAt.toISOString() : null,
@@ -140,6 +142,7 @@ export async function buildResultsCsv(eventId: string): Promise<string> {
     "Fin",
     "Respuestas correctas",
     "Respuestas incorrectas",
+    "Postas saltadas",
     "Resultado",
   ];
   for (const s of stations) {
@@ -160,6 +163,9 @@ export async function buildResultsCsv(eventId: string): Promise<string> {
     const validSet = new Set(
       team.visits.filter((v) => v.status === "VALID").map((v) => v.stationId)
     );
+    const skippedSet = new Set(
+      team.visits.filter((v) => v.status === "SKIPPED").map((v) => v.stationId)
+    );
     const byStation = new Map(
       team.visits.map((v) => [v.stationId, v as (typeof team.visits)[number]])
     );
@@ -176,6 +182,7 @@ export async function buildResultsCsv(eventId: string): Promise<string> {
       progress.finishAt ? new Date(progress.finishAt).toISOString() : "",
       correct,
       wrong,
+      progress.skipped,
       progress.done ? "COMPLETADO" : progress.completed > 0 ? "EN CURSO" : "SIN INICIAR",
     ];
 
@@ -185,9 +192,11 @@ export async function buildResultsCsv(eventId: string): Promise<string> {
       if (stationOrder.includes(s.id)) {
         cell = validSet.has(s.id)
           ? "OK"
-          : visit
-            ? `Fallida (${visit.attemptNumber})`
-            : "Pendiente";
+          : skippedSet.has(s.id)
+            ? "Saltada"
+            : visit
+              ? `Fallida (${visit.attemptNumber})`
+              : "Pendiente";
       }
       row.push(cell);
     }

@@ -15,6 +15,7 @@ import { safariRoutes } from "@/modules/safari/safari.routes";
 import { safariAdminRoutes } from "@/modules/safari/safari-admin.routes";
 import { scoringAdminRoutes } from "@/modules/scoring/scoring-admin.routes";
 import { rankingRoutes } from "@/modules/scoring/ranking.routes";
+import { memberRoutes } from "@/modules/members/member.routes";
 import { adminRoutes } from "@/modules/admin/admin.routes";
 
 /**
@@ -86,6 +87,7 @@ export function createApp() {
   app.use("/api/v1/admin/safari", safariAdminRoutes);
   app.use("/api/v1/admin/scoring", scoringAdminRoutes);
   app.use("/api/v1/ranking", rankingRoutes);
+  app.use("/api/v1/members", memberRoutes);
   app.use("/api/v1/admin", adminRoutes);
 
   app.use(notFoundHandler);

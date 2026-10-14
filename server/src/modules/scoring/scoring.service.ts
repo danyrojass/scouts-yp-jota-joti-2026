@@ -271,6 +271,100 @@ export async function deleteScore(id: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Puntuacion automatica de las actividades STATIONS (recorrido de postas QR)
+// ---------------------------------------------------------------------------
+
+// Marca de los puntajes calculados por el sistema. Un puntaje editado a mano
+// por un admin (evaluatedBy con un username) nunca se pisa.
+export const SYSTEM_EVALUATOR = "sistema";
+
+/**
+ * Recalcula y persiste el puntaje de las actividades `STATIONS` del evento para
+ * un equipo. Cada posta resuelta aporta `maxScore / totalPostas`; una posta
+ * saltada (frase de rescate) aporta la mitad. El resultado queda "evaluado" por
+ * el sistema, salvo que un admin lo haya cargado a mano (no se sobrescribe).
+ * Es idempotente y seguro de llamar tras cada visita/salto/reset.
+ */
+export async function recomputeStationsScoreForTeam(teamId: string): Promise<void> {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: {
+      eventId: true,
+      routeStops: { select: { stationId: true } },
+      visits: { select: { stationId: true, status: true } },
+    },
+  });
+  if (!team) return;
+
+  const totalStops = team.routeStops.length;
+  if (totalStops === 0) return;
+
+  const activities = await prisma.activity.findMany({
+    where: { eventId: team.eventId, active: true, scoringMethod: "STATIONS" },
+  });
+  if (activities.length === 0) return;
+
+  const validStations = new Set(
+    team.visits.filter((v) => v.status === "VALID").map((v) => v.stationId)
+  );
+  const resolvedStations = new Set(
+    team.visits
+      .filter((v) => v.status === "VALID" || v.status === "SKIPPED")
+      .map((v) => v.stationId)
+  );
+
+  let validCount = 0;
+  let skippedCount = 0;
+  for (const stop of team.routeStops) {
+    if (!resolvedStations.has(stop.stationId)) continue;
+    if (validStations.has(stop.stationId)) validCount++;
+    else skippedCount++;
+  }
+
+  const observations = `${validCount} superada(s), ${skippedCount} saltada(s) de ${totalStops}`;
+
+  for (const activity of activities) {
+    // Sin tope configurado no hay base de puntos para repartir.
+    if (activity.maxScore === null) continue;
+
+    const existing = await prisma.teamActivityScore.findUnique({
+      where: { teamId_activityId: { teamId, activityId: activity.id } },
+      select: { evaluated: true, evaluatedBy: true },
+    });
+    if (
+      existing?.evaluated &&
+      existing.evaluatedBy &&
+      existing.evaluatedBy !== SYSTEM_EVALUATOR
+    ) {
+      continue;
+    }
+
+    const perStop = activity.maxScore / totalStops;
+    let score = round2((validCount + 0.5 * skippedCount) * perStop);
+    if (score > activity.maxScore + EPSILON) score = round2(activity.maxScore);
+
+    const data = {
+      score,
+      evaluated: true,
+      evaluatedBy: SYSTEM_EVALUATOR,
+      evaluatedAt: new Date(),
+      observations,
+    };
+
+    await prisma.teamActivityScore.upsert({
+      where: { teamId_activityId: { teamId, activityId: activity.id } },
+      update: data,
+      create: {
+        eventId: team.eventId,
+        teamId,
+        activityId: activity.id,
+        ...data,
+      },
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Ranking
 // ---------------------------------------------------------------------------
 

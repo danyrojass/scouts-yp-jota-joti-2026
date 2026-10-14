@@ -107,6 +107,7 @@ export function DashboardPage() {
               <th className="py-2 pr-3">Inicio</th>
               <th className="py-2 pr-3">Fin</th>
               <th className="py-2 pr-3">Correctas</th>
+              <th className="py-2 pr-3">Saltadas</th>
               <th className="py-2 pr-3">Estado</th>
             </tr>
           </thead>
@@ -133,6 +134,13 @@ export function DashboardPage() {
                     <span className="font-bold text-forest-700">{t.correctAnswers}</span>
                     <span className="text-forest-400"> / {t.wrongAnswers}</span>
                   </td>
+                  <td className="py-2.5 pr-3">
+                    {t.skipped > 0 ? (
+                      <span className="font-bold text-amber-700">{t.skipped}</span>
+                    ) : (
+                      <span className="text-forest-300">—</span>
+                    )}
+                  </td>
                   <td className="py-2.5"><Badge tone={b.tone}>{b.label}</Badge></td>
                 </tr>
               );
@@ -154,7 +162,13 @@ export function DashboardPage() {
                 </p>
                 <span className="shrink-0 text-xs font-semibold text-forest-500">
                   {new Date(v.visitedAt).toLocaleTimeString("es")} ·{" "}
-                  {v.status === "VALID" ? <Badge tone="green">OK</Badge> : <Badge tone="red">Fallida</Badge>}
+                  {v.status === "VALID" ? (
+                    <Badge tone="green">OK</Badge>
+                  ) : v.status === "SKIPPED" ? (
+                    <Badge tone="orange">Saltada</Badge>
+                  ) : (
+                    <Badge tone="red">Fallida</Badge>
+                  )}
                 </span>
               </li>
             ))}

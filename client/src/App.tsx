@@ -16,9 +16,9 @@ import { DashboardPage } from "@/pages/admin/DashboardPage";
 import { TeamsPage } from "@/pages/admin/TeamsPage";
 import { StationsPage } from "@/pages/admin/StationsPage";
 import { ItinerariesPage } from "@/pages/admin/ItinerariesPage";
+import { MembersPage } from "@/pages/admin/MembersPage";
 import { SafariAdminPage } from "@/pages/admin/SafariPage";
 import { ScoringAdminPage } from "@/pages/admin/ScoringPage";
-import { AdminRankingPage } from "@/pages/admin/RankingPage";
 import { PrintQrsPage } from "@/pages/admin/PrintQrsPage";
 import { ResultsPage } from "@/pages/admin/ResultsPage";
 import { PublicRankingPage } from "@/pages/PublicRankingPage";
@@ -66,11 +66,12 @@ export default function App() {
           <Route index element={<Navigate to="pizarra" replace />} />
           <Route path="pizarra" element={<DashboardPage />} />
           <Route path="equipos" element={<TeamsPage />} />
+          <Route path="integrantes" element={<MembersPage />} />
           <Route path="postas" element={<StationsPage />} />
           <Route path="itinerarios" element={<ItinerariesPage />} />
           <Route path="safari" element={<SafariAdminPage />} />
           <Route path="actividades" element={<ScoringAdminPage />} />
-          <Route path="ranking" element={<AdminRankingPage />} />
+          <Route path="ranking" element={<Navigate to="../equipos?tab=ranking" replace />} />
           <Route path="impresion" element={<PrintQrsPage />} />
           <Route path="resultados" element={<ResultsPage />} />
         </Route>

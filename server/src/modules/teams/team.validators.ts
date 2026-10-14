@@ -50,3 +50,9 @@ export const resetProgressSchema = z.object({
     errorMap: () => ({ message: "Se requiere confirmacion explicita" }),
   }),
 });
+
+/** Admin override: mark a station as skipped for a team. */
+export const teamSkipSchema = z.object({
+  stationId: z.string().min(1, "La posta es obligatoria"),
+  reason: z.string().trim().max(300).optional().default(""),
+});

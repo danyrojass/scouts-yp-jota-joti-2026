@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { ArrowUp, ArrowDown, Save, Route as RouteIcon } from "lucide-react";
 import { api } from "@/api/client";
 import { errorMessage, type EventItem, type StationItem, type TeamItem } from "@/api/types";
@@ -30,12 +30,30 @@ export function ItinerariesPage() {
   const [confirmForce, setConfirmForce] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ tone: "success" | "error"; msg: string } | null>(null);
+  const [searchParams] = useSearchParams();
+  const teamParam = searchParams.get("team");
+
+  const teams: TeamWithStops[] = data
+    ? ((data.event as unknown as { teams: TeamItem[] }).teams ?? [])
+    : [];
+
+  // Deep link desde Equipos: /itinerarios?team=<id> abre ese equipo.
+  useEffect(() => {
+    if (!teamParam || selectedTeamId) return;
+    const team = teams.find((t) => t.id === teamParam);
+    if (!team) return;
+    setSelectedTeamId(team.id);
+    setSaveMsg(null);
+    setDraft(
+      [...(team.routeStops ?? [])]
+        .sort((a, b) => a.position - b.position)
+        .map((s) => s.stationId)
+    );
+  }, [teamParam, teams, selectedTeamId]);
 
   if (loading && !data) return <LoadingScreen label="Cargando itinerarios…" />;
   if (error && !data) return <Alert tone="error">{error}</Alert>;
   if (!data || !event) return null;
-
-  const teams: TeamWithStops[] = (data.event as unknown as { teams: TeamItem[] }).teams ?? [];
   const stations = data.stations;
   const stationName = (id: string) => stations.find((s) => s.id === id)?.name ?? "Posta desconocida";
   const eventInProgress = event.status === "IN_PROGRESS";

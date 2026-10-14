@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, RotateCcw, KeyRound } from "lucide-react";
+import { Plus, Pencil, RotateCcw, KeyRound, Trophy, Route, Compass } from "lucide-react";
 import { api } from "@/api/client";
 import { errorMessage, type Dashboard, type EventItem, type TeamItem } from "@/api/types";
 import { useApi } from "@/hooks/useApi";
@@ -11,6 +11,7 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { Alert } from "@/components/Alert";
 import { Badge, ProgressBar } from "@/components/ProgressBar";
 import { Modal, ConfirmDialog } from "@/components/Modal";
+import { AdminRankingPage } from "@/pages/admin/RankingPage";
 
 const teamSchema = z.object({
   name: z.string().trim().min(1, "Nombre obligatorio"),
@@ -23,6 +24,8 @@ type FormValues = z.infer<typeof teamSchema>;
 
 export function TeamsPage() {
   const { eventId = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "ranking" ? "ranking" : "equipos";
   const fetchEvent = useCallback(() => api.get<{ event: EventItem }>(`/api/v1/events/${eventId}`).then((r) => r.event), [eventId]);
   const fetchDashboard = useCallback(() => api.get<Dashboard>(`/api/v1/admin/dashboard?eventId=${eventId}`).then((r) => r), [eventId]);
   const { data: event } = useApi<EventItem>(fetchEvent, [eventId]);
@@ -95,10 +98,41 @@ export function TeamsPage() {
   const eventInProgress = event?.status === "IN_PROGRESS";
   const rows = dashboard?.teams ?? [];
 
+  const subTabs = (
+    <div className="flex gap-2">
+      <button
+        onClick={() => setSearchParams({})}
+        className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+          tab === "equipos" ? "bg-forest-700 text-white" : "bg-white text-forest-700 hover:bg-forest-50"
+        }`}
+      >
+        <Compass className="h-4 w-4" /> Equipos
+      </button>
+      <button
+        onClick={() => setSearchParams({ tab: "ranking" })}
+        className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+          tab === "ranking" ? "bg-forest-700 text-white" : "bg-white text-forest-700 hover:bg-forest-50"
+        }`}
+      >
+        <Trophy className="h-4 w-4" /> Ranking
+      </button>
+    </div>
+  );
+
   if (loading && !dashboard) return <LoadingScreen label="Cargando equipos…" />;
+
+  if (tab === "ranking") {
+    return (
+      <div className="space-y-4">
+        {subTabs}
+        <AdminRankingPage />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
+      {subTabs}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-xl font-bold text-forest-900">Equipos</h2>
@@ -128,6 +162,7 @@ export function TeamsPage() {
               <th className="py-2 pr-3">Equipo</th>
               <th className="py-2 pr-3">Usuario</th>
               <th className="py-2 pr-3">Progreso</th>
+              <th className="py-2 pr-3">Itinerario</th>
               <th className="py-2 pr-3">Estado</th>
               <th className="py-2 pr-3 text-right">Acciones</th>
             </tr>
@@ -142,6 +177,19 @@ export function TeamsPage() {
                     <ProgressBar value={t.completed} max={t.totalStops} className="h-2.5 w-20" />
                     <span className="font-bold text-forest-700">{t.completed}/{t.totalStops}</span>
                   </div>
+                  {t.skipped > 0 && (
+                    <p className="mt-0.5 text-xs font-semibold text-amber-700">
+                      {t.skipped} saltada{t.skipped === 1 ? "" : "s"}
+                    </p>
+                  )}
+                </td>
+                <td className="py-2.5 pr-3">
+                  <Link
+                    to={`../itinerarios?team=${t.teamId}`}
+                    className="inline-flex items-center gap-1 rounded-xl bg-forest-50 px-2.5 py-1.5 text-xs font-bold text-forest-700 hover:bg-forest-100"
+                  >
+                    <Route className="h-4 w-4" /> Ver
+                  </Link>
                 </td>
                 <td className="py-2.5 pr-3">
                   {t.active ? <Badge tone="green">Activo</Badge> : <Badge tone="red">Inactivo</Badge>}
@@ -170,7 +218,7 @@ export function TeamsPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-6 text-center font-semibold text-forest-500">
+                <td colSpan={6} className="py-6 text-center font-semibold text-forest-500">
                   Sin equipos todavía. Creá el primero con el botón "Nuevo equipo".
                 </td>
               </tr>

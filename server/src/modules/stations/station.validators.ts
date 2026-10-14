@@ -22,6 +22,8 @@ export const createStationSchema = z.object({
   instructions: z.string().trim().max(2000).optional().nullable(),
   displayedCode: z.string().trim().max(200).optional().nullable(),
   expectedAnswer: z.string().trim().max(500).optional().nullable(),
+  // Frase que habilita saltar esta posta si el QR no se puede escanear.
+  rescuePhrase: z.string().trim().max(200).optional().nullable(),
   autoAcceptAny: z.boolean().default(false),
   active: z.boolean().default(true),
   latitude: latitudeSchema.optional(),
