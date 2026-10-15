@@ -21,6 +21,7 @@ const CATEGORY_OPTIONS: { value: SafariCategory; label: string }[] = [
   { value: "NATURALEZA", label: "Naturaleza" },
   { value: "OBJETOS_CURIOSIDADES", label: "Objetos y curiosidades" },
   { value: "DESAFIOS_FOTOGRAFICOS", label: "Desafíos fotográficos" },
+  { value: "PREGUNTAS_YPACARAI", label: "Preguntas sobre Ypacaraí" },
   { value: "GENERAL", label: "General" },
 ];
 
@@ -29,6 +30,7 @@ const TYPE_OPTIONS: { value: SafariItemType; label: string }[] = [
   { value: "OBJECT", label: "Objeto que debe encontrarse" },
   { value: "NUMERIC", label: "Observación con respuesta numérica" },
   { value: "COLLECTION", label: "Recolección de elementos naturales" },
+  { value: "QUESTION", label: "Pregunta con respuesta escrita" },
 ];
 
 const categoryLabel = (c: SafariCategory) =>

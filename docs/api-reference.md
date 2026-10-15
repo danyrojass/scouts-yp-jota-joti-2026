@@ -28,8 +28,8 @@ Base URL: `/api/v1`. En desarrollo, el cliente (5173) proxya `/api` hacia el ser
 | GET | `/visits/posta/:token` | Pantalla de desafío. `{ status, station? }`. |
 | POST | `/visits` | Registra visita. Body `{ publicToken, answer }`. |
 | POST | `/visits/skip` | **Recuperación de posta**: salta la próxima posta sin resolver ingresando la frase de rescate. Body `{ phrase, reason? }` → `{ result: "SKIPPED", skipped, nextStation, remaining }`. Códigos: `RESCUE_PHRASE_INVALID` (400), `SKIP_DISABLED`/`ALL_RESOLVED`/`NOT_YOUR_NEXT` (409), `EVENT_NOT_READY`/`EVENT_FINISHED`/`EVENT_CANCELLED` (409). Requiere `x-csrf-token`. |
-| GET | `/safari` | Safari del equipo: `{ team, event, safari, items, categories, progress }`. `safari` es `null` si el evento no tiene safari. Cada ítem trae `category`, `itemType`, `requiresPhoto`, `found`, `foundAt`, `value` (observación, p. ej. cantidad) y `photoReady` (evidencia fotográfica declarada). |
-| POST | `/safari/items/:itemId/find` | Marca un elemento como encontrado (idempotente). Body opcional `{ value }` (obligatorio para `itemType: NUMERIC`). Requiere evento `IN_PROGRESS` (`409` si no lo está; `403` si el elemento es de otro evento). Devuelve el safari actualizado. |
+| GET | `/safari` | Safari del equipo: `{ team, event, safari, items, categories, progress }`. `safari` es `null` si el evento no tiene safari. Cada ítem trae `category`, `itemType`, `requiresPhoto`, `found`, `foundAt`, `value` (registro: observación numérica o respuesta escrita) y `photoReady` (evidencia fotográfica declarada). |
+| POST | `/safari/items/:itemId/find` | Marca un elemento como encontrado (idempotente). Body opcional `{ value }` (obligatorio para `itemType: NUMERIC` y `QUESTION`). Requiere evento `IN_PROGRESS` (`409` si no lo está; `403` si el elemento es de otro evento). Devuelve el safari actualizado. |
 | DELETE | `/safari/items/:itemId/find` | Desmarca un elemento (idempotente). Mismas restricciones. |
 | POST | `/safari/items/:itemId/photo` | Registra `{ ready: boolean }`: declara que la evidencia fotográfica está lista/compartida según las reglas. Solo declara; **no** sube ni publica imágenes. |
 
@@ -132,7 +132,7 @@ Base `/members`. Lista de beneficiarios del evento (sin cuenta ni login). Todas 
 | POST | `/admin/safari` | Crea el safari del evento (1:1). Body `{ eventId, title?, description? }`. |
 | PATCH | `/admin/safari/:id` | Actualiza `{ title?, description?, active? }`. |
 | GET | `/admin/safari/:id/progress` | Reporte: `{ safari, counts, teams, items }`. |
-| POST | `/admin/safari/:id/items` | Crea ítem. Body `{ name, description?, active?, position?, category?, itemType?, requiresPhoto? }`. `category`: `LUGARES_CULTURA` \| `NATURALEZA` \| `OBJETOS_CURIOSIDADES` \| `DESAFIOS_FOTOGRAFICOS` \| `GENERAL`. `itemType`: `PHOTO` \| `OBJECT` \| `NUMERIC` \| `COLLECTION`. |
+| POST | `/admin/safari/:id/items` | Crea ítem. Body `{ name, description?, active?, position?, category?, itemType?, requiresPhoto? }`. `category`: `LUGARES_CULTURA` \| `NATURALEZA` \| `OBJETOS_CURIOSIDADES` \| `DESAFIOS_FOTOGRAFICOS` \| `PREGUNTAS_YPACARAI` \| `GENERAL`. `itemType`: `PHOTO` \| `OBJECT` \| `NUMERIC` \| `COLLECTION` \| `QUESTION`. |
 | PATCH | `/admin/safari/items/:itemId` | Actualiza ítem (mismos campos que el create). |
 | DELETE | `/admin/safari/items/:itemId` | Elimina ítem → 204. |
 | POST | `/admin/safari/:id/reorder` | Reordena. Body `{ itemIds: string[] }`. |

@@ -25,6 +25,7 @@ const CATEGORY_LABELS: Record<SafariCategory, string> = {
   NATURALEZA: "Naturaleza",
   OBJETOS_CURIOSIDADES: "Objetos y curiosidades",
   DESAFIOS_FOTOGRAFICOS: "Desafíos fotográficos",
+  PREGUNTAS_YPACARAI: "Preguntas sobre Ypacaraí",
   GENERAL: "General",
 };
 
@@ -33,6 +34,7 @@ const CATEGORY_ORDER: SafariCategory[] = [
   "NATURALEZA",
   "OBJETOS_CURIOSIDADES",
   "DESAFIOS_FOTOGRAFICOS",
+  "PREGUNTAS_YPACARAI",
 ];
 
 const TYPE_LABELS: Record<SafariItemType, string> = {
@@ -40,6 +42,7 @@ const TYPE_LABELS: Record<SafariItemType, string> = {
   OBJECT: "Objeto",
   NUMERIC: "Observación",
   COLLECTION: "Recolección",
+  QUESTION: "Pregunta",
 };
 
 const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/C0vmzEN33swAGVejxobdLP";
@@ -77,7 +80,7 @@ export function SafariPage() {
   const markFound = (itemId: string) =>
     runAction(() => api.post<TeamSafari>(`/api/v1/safari/items/${itemId}/find`), itemId);
 
-  const markNumeric = (itemId: string, value: string) => {
+  const markWithValue = (itemId: string, value: string) => {
     if (!value.trim()) return;
     runAction(
       () => api.post<TeamSafari>(`/api/v1/safari/items/${itemId}/find`, { value: value.trim() }),
@@ -211,7 +214,8 @@ export function SafariPage() {
           <ul className="space-y-2">
             {group.items.map((item) => {
               const itemBusy = busyId === item.id;
-              const numericDraft = drafts[item.id] ?? "";
+              const answerDraft = drafts[item.id] ?? "";
+              const needsAnswer = item.itemType === "NUMERIC" || item.itemType === "QUESTION";
               return (
                 <li
                   key={item.id}
@@ -222,7 +226,7 @@ export function SafariPage() {
                   <div className="flex w-full items-start gap-3 text-left">
                     <button
                       onClick={() => void (item.found ? unmark(item.id) : markFound(item.id))}
-                      disabled={disabled || (item.itemType === "NUMERIC" && !item.found)}
+                      disabled={disabled || (needsAnswer && !item.found)}
                       className="mt-0.5 shrink-0 disabled:opacity-50"
                       aria-label={item.found ? "Desmarcar" : "Marcar"}
                     >
@@ -261,21 +265,21 @@ export function SafariPage() {
                     </div>
                   </div>
 
-                  {item.itemType === "NUMERIC" && !item.found && (
+                  {needsAnswer && !item.found && (
                     <div className="mt-3 flex items-center gap-2">
                       <input
-                        type="number"
-                        inputMode="numeric"
+                        type={item.itemType === "NUMERIC" ? "number" : "text"}
+                        inputMode={item.itemType === "NUMERIC" ? "numeric" : "text"}
                         className="input min-w-0 flex-1"
-                        placeholder="Cantidad"
-                        value={numericDraft}
+                        placeholder={item.itemType === "NUMERIC" ? "Cantidad" : "Escribí tu respuesta"}
+                        value={answerDraft}
                         onChange={(e) =>
                           setDrafts((d) => ({ ...d, [item.id]: e.target.value }))
                         }
                       />
                       <button
-                        onClick={() => void markNumeric(item.id, numericDraft)}
-                        disabled={disabled || !numericDraft.trim()}
+                        onClick={() => void markWithValue(item.id, answerDraft)}
+                        disabled={disabled || !answerDraft.trim()}
                         className="btn-primary px-4 py-2 text-sm"
                       >
                         Registrar

@@ -5,6 +5,7 @@ export const SAFARI_CATEGORIES = [
   "NATURALEZA",
   "OBJETOS_CURIOSIDADES",
   "DESAFIOS_FOTOGRAFICOS",
+  "PREGUNTAS_YPACARAI",
   "GENERAL",
 ] as const;
 
@@ -13,6 +14,7 @@ export const SAFARI_ITEM_TYPES = [
   "OBJECT",
   "NUMERIC",
   "COLLECTION",
+  "QUESTION",
 ] as const;
 
 export const safariCategorySchema = z.enum(SAFARI_CATEGORIES);

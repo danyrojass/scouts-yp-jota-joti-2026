@@ -16,6 +16,7 @@ const CATEGORIES = {
   NATURALEZA: "NATURALEZA",
   OBJETOS_CURIOSIDADES: "OBJETOS_CURIOSIDADES",
   DESAFIOS_FOTOGRAFICOS: "DESAFIOS_FOTOGRAFICOS",
+  PREGUNTAS_YPACARAI: "PREGUNTAS_YPACARAI",
 } as const;
 
 const ITEMS: SeedItem[] = [
@@ -50,6 +51,14 @@ const ITEMS: SeedItem[] = [
   // D. Desafíos fotográficos
   { name: "Fotografía de un elemento que represente el espíritu scout", description: "Algo que para el equipo represente el espíritu scout: una promesa, un símbolo, una actitud...", category: CATEGORIES.DESAFIOS_FOTOGRAFICOS, itemType: "PHOTO", requiresPhoto: true },
   { name: "Fotografía creativa de todo el equipo durante la exploración", description: "Un retrato creativo con todos los integrantes del equipo.", category: CATEGORIES.DESAFIOS_FOTOGRAFICOS, itemType: "PHOTO", requiresPhoto: true },
+
+  // E. Preguntas sobre Ypacaraí (respuesta escrita, se registra como observación)
+  { name: "¿Cuánto cuesta una estampilla de correo?", description: "Averiguá en la oficina de correos de Ypacaraí el precio de una estampilla y registralo.", category: CATEGORIES.PREGUNTAS_YPACARAI, itemType: "QUESTION", requiresPhoto: false },
+  { name: "¿Cómo se llama la parroquia de Ypacaraí y cómo se llama el cura párroco?", description: "Averiguá el nombre de la parroquia principal de Ypacaraí y el de su cura párroco.", category: CATEGORIES.PREGUNTAS_YPACARAI, itemType: "QUESTION", requiresPhoto: false },
+  { name: "¿Cómo se llama la Casa de la Cultura y los restos de quiénes descansaban allí?", description: "Averiguá el nombre de la Casa de la Cultura de Ypacaraí y de quiénes eran los restos que descansaban allí.", category: CATEGORIES.PREGUNTAS_YPACARAI, itemType: "QUESTION", requiresPhoto: false },
+  { name: "¿Qué tres calles pasan por la plaza de Ypacaraí?", description: "Observá la plaza principal y anotá el nombre de tres calles que pasan por ella.", category: CATEGORIES.PREGUNTAS_YPACARAI, itemType: "QUESTION", requiresPhoto: false },
+  { name: "¿Cómo se llama el paseo cercano a la estación del tren y cómo se le dice coloquialmente al tren?", description: "Averiguá el nombre del paseo junto a la estación del tren y el apodo coloquial de ese tren.", category: CATEGORIES.PREGUNTAS_YPACARAI, itemType: "QUESTION", requiresPhoto: false },
+  { name: "¿Cuánto cuesta una hamburguesa \"El Inglés\" del restaurant E60?", description: "Averiguá el precio de la hamburguesa \"El Inglés\" en el restaurant E60 de Ypacaraí y registralo.", category: CATEGORIES.PREGUNTAS_YPACARAI, itemType: "QUESTION", requiresPhoto: false },
 ];
 
 const SAFARI_TITLE = "Safari JOTA JOTI 2026 — Ypacaraí";

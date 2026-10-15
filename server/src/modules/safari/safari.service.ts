@@ -125,7 +125,7 @@ export async function setSafariItemFound(
     throw ApiError.conflict("El evento no esta en curso");
   }
 
-  if (item.itemType === "NUMERIC" && found && !value) {
+  if ((item.itemType === "NUMERIC" || item.itemType === "QUESTION") && found && !value) {
     throw ApiError.badRequest(
       "Este desafio requiere registrar la observacion (un numero o respuesta)"
     );

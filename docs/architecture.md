@@ -113,6 +113,7 @@ PREPARED ──start──▶ IN_PROGRESS ──finish──▶ FINISHED
 ### Safari de Exploración
 - Checklist colaborativo **por equipo**, persistido en el servidor (una fila `SafariFind` por `itemId`+`teamId`). Es **independiente** de las postas del pasaporte.
 - Un `Safari` está ligado 1:1 a un evento (`eventId @unique`). Los `SafariItem` tienen `position` (sin restricción única, para reordenar con facilidad) y `active`; los inactivos no se cuentan ni se muestran.
+- Cada ítem tiene `category` (`LUGARES_CULTURA`, `NATURALEZA`, `OBJETOS_CURIOSIDADES`, `DESAFIOS_FOTOGRAFICOS`, `PREGUNTAS_YPACARAI`, `GENERAL`) e `itemType` (`PHOTO`, `OBJECT`, `NUMERIC`, `COLLECTION`, `QUESTION`). Los tipos `NUMERIC` (observación) y `QUESTION` (pregunta abierta, p. ej. sobre Ypacaraí) exigen que el equipo registre un `value` al marcar; no hay validación de acierto, es solo un registro.
 - El equipo solo puede marcar/desmarcar con el evento `IN_PROGRESS`; un elemento de otro evento responde `403` y fuera de estado `409`.
 - El admin administra el safari (items, orden, activo) y ve el progreso por equipo (`GET /admin/safari/:id/progress`), con la posibilidad de reiniciar el progreso de un equipo o de todos (se audita como `RESET`).
 

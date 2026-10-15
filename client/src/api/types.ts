@@ -222,12 +222,13 @@ export type Dashboard = {
   }[];
 };
 
-export type SafariItemType = "PHOTO" | "OBJECT" | "NUMERIC" | "COLLECTION";
+export type SafariItemType = "PHOTO" | "OBJECT" | "NUMERIC" | "COLLECTION" | "QUESTION";
 export type SafariCategory =
   | "LUGARES_CULTURA"
   | "NATURALEZA"
   | "OBJETOS_CURIOSIDADES"
   | "DESAFIOS_FOTOGRAFICOS"
+  | "PREGUNTAS_YPACARAI"
   | "GENERAL";
 
 export type SafariTeamItem = {
