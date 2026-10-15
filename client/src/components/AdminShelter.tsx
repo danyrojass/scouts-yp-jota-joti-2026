@@ -1,12 +1,15 @@
-import { Navigate, Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Navigate, Outlet, NavLink, useNavigate, useMatch } from "react-router-dom";
 import { LayoutDashboard, LogOut, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Logo } from "@/components/Logo";
+import { AdminEventTabs } from "@/components/AdminEventTabs";
 
 export function AdminShelter() {
   const { status, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
+  const eventMatch = useMatch("/admin/eventos/:eventId/*");
+  const eventId = eventMatch?.params.eventId;
 
   if (status === "loading") return <LoadingScreen />;
   if (!isAdmin) return <Navigate to={status === "anon" ? "/login" : "/pasaporte"} replace />;
@@ -43,7 +46,7 @@ export function AdminShelter() {
 
       <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6">
         <aside className="hidden w-56 shrink-0 lg:block">
-          <div className="sticky top-24 space-y-1">
+          <div className="sticky top-24 space-y-4">
             {sections.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}
@@ -59,6 +62,7 @@ export function AdminShelter() {
                 {label}
               </NavLink>
             ))}
+            {eventId && <AdminEventTabs eventId={eventId} variant="vertical" />}
           </div>
         </aside>
 

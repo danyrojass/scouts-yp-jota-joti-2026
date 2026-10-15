@@ -28,7 +28,9 @@ export function EventDetailPage() {
             📅 {new Date(event.date).toLocaleDateString("es")}
             {event.location ? ` • 📍 ${event.location}` : ""}
           </p>
-          <AdminEventTabs eventId={eventId} />
+          <div className="lg:hidden">
+            <AdminEventTabs eventId={eventId} />
+          </div>
         </>
       )}
       <Outlet />
