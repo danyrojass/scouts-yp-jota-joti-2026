@@ -7,6 +7,9 @@
 | **Coordenadas de posta** (`latitude`/`longitude`) | Ubicación opcional de la posta. Alimentan el mapa del itinerario; se cargan por el admin o por importación CSV. |
 | **`mapsUrl`** | Enlace a Google Maps Directions calculado por el servidor para llegar a una posta con coordenadas. |
 | **Token público** (`publicToken`) | Identificador aleatorio de la posta embebido en su QR. No es enumerable ni adivinable. |
+| **Marca de agua del QR** | Logo del Grupo Scout 62 superpuesto en el centro del QR imprimible (PNG 1024×1024, corrección de errores `H`). Embebido como base64 en `server/src/assets/scout-logo.ts`. |
+| **Pantalla de invitación** | Vista que reemplaza a la posta cuando el evento **finalizó o se canceló**: invita a conocer el Grupo Scout 62 Ypacaraí y su Instagram (`@gruposcout62`). Es **pública**: se muestra a cualquiera que escanee el QR, con o sin sesión. |
+| **Estado público del token** | Respuesta de `GET /stations/public/:token` (sin auth): `OPEN` (evento abierto → pedir login), `CLOSED` (evento finalizado/cancelado → mostrar invitación) o `NOT_FOUND` (QR inválido). No expone datos de la posta. |
 | **Desafío** (`challengeType`) | Tipo de reto de la posta: `CODE` (código/palabra), `QUESTION` (pregunta), `CONFIRMATION` (solo confirmar el paso), `AUTO` (acepta cualquier respuesta si `autoAcceptAny`). |
 | **Respuesta esperada** (`expectedAnswer`) | Solución correcta de la posta. **Nunca** se envía al cliente; la valida el servidor. |
 | **Código mostrado** (`displayedCode`) | Pista textual opcional que sí puede ver el equipo. |

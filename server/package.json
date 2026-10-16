@@ -37,6 +37,7 @@
     "express-session": "^1.18.1",
     "helmet": "^8.0.0",
     "pg": "^8.13.1",
+    "pngjs": "^5.0.0",
     "qrcode": "^1.5.4",
     "zod": "^3.24.1"
   },
@@ -49,6 +50,7 @@
     "@types/express-session": "^1.18.1",
     "@types/node": "^22.13.1",
     "@types/pg": "^8.11.11",
+    "@types/pngjs": "^6.0.5",
     "@types/qrcode": "^1.5.5",
     "@types/supertest": "^6.0.2",
     "prisma": "^6.3.1",

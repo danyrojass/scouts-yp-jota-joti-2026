@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { MapPin, CheckCircle2, XCircle, Route as RouteIcon, RotateCcw, ScanLine } from "lucide-react";
+import { MapPin, CheckCircle2, Route as RouteIcon, RotateCcw, ScanLine } from "lucide-react";
 import { api } from "@/api/client";
 import {
   errorMessage,
@@ -12,6 +12,10 @@ import {
 } from "@/api/types";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Alert } from "@/components/Alert";
+import { MessageScreen } from "@/components/MessageScreen";
+import { ScoutInvite } from "@/components/ScoutInvite";
+import { PublicStationView } from "@/components/PublicStationView";
+import { useAuth } from "@/context/AuthContext";
 
 const answerSchema = z.object({
   answer: z.string().trim().min(1, "Ingresá una respuesta"),
@@ -29,6 +33,8 @@ const NEXT_STATUS_LABEL: Record<string, string> = {
 
 export function StationPage() {
   const { token = "" } = useParams();
+  const { status, isTeam, principal } = useAuth();
+  const eventName = principal?.type === "team" ? principal.eventName : undefined;
   const [challenge, setChallenge] = useState<StationChallengeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,11 +63,10 @@ export function StationPage() {
   }, [token, reset]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (isTeam) void load();
+  }, [load, isTeam]);
 
   const needsAnswer = challenge?.status === "NEXT" && challenge.station.challengeType !== "CONFIRMATION";
-
   const onSubmit = async ({ answer }: { answer: string }) => {
     setSubmitting(true);
     setError(null);
@@ -81,11 +86,27 @@ export function StationPage() {
     }
   };
 
+  // Sin sesión de equipo, el QR se resuelve con el estado público del token
+  // (login si el evento está abierto; invitación al grupo si ya terminó).
+  if (status === "loading") return <LoadingScreen />;
+  if (!isTeam) return <PublicStationView token={token} />;
+
   if (loading) return <LoadingScreen label="Abriendo la posta…" />;
 
   if (error && !challenge) return <MessageScreen tone="error" title="No se pudo abrir la posta"><span>{error}</span></MessageScreen>;
 
   if (!challenge) return null;
+
+  // Cuando el evento ya no está abierto (finalizó o se canceló), cualquier QR
+  // escaneado invita a conocer el grupo en vez de mostrar la posta.
+  if (
+    challenge.status === "EVENT_FINISHED" ||
+    challenge.status === "EVENT_CANCELLED" ||
+    result?.result === "EVENT_FINISHED" ||
+    result?.result === "EVENT_CANCELLED"
+  ) {
+    return <ScoutInvite eventName={eventName} />;
+  }
 
   if (challenge.status !== "NEXT") {
     const isCompleted = challenge.status === "COMPLETED";
@@ -207,26 +228,6 @@ export function StationPage() {
           <RotateCcw className="h-5 w-5" /> Intentar de nuevo
         </button>
       )}
-    </div>
-  );
-}
-
-function MessageScreen({
-  tone,
-  title,
-  children,
-}: {
-  tone: "error" | "info" | "warning";
-  title: string;
-  children?: React.ReactNode;
-}) {
-  const icon =
-    tone === "error" ? <XCircle className="h-10 w-10 text-red-500" /> : tone === "info" ? <CheckCircle2 className="h-10 w-10 text-forest-600" /> : <RouteIcon className="h-10 w-10 text-clay-500" />;
-  return (
-    <div className="card flex flex-col items-center gap-2 py-10 text-center">
-      {icon}
-      <h1 className="font-display text-xl font-bold text-forest-900">{title}</h1>
-      <div className="flex flex-col items-center gap-2">{children}</div>
     </div>
   );
 }

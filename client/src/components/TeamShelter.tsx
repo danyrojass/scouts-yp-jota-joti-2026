@@ -18,6 +18,17 @@ export function TeamShelter() {
 
   if (status === "loading") return <LoadingScreen />;
   if (!isTeam) {
+    // La posta es accesible sin sesión: tras el evento muestra la invitación al
+    // grupo y durante el evento pide iniciar sesión (ver StationPage).
+    if (location.pathname.startsWith("/posta/")) {
+      return (
+        <div className="min-h-dvh bg-forest-100">
+          <main className="mx-auto max-w-2xl px-4 py-5">
+            <Outlet />
+          </main>
+        </div>
+      );
+    }
     return (
       <Navigate to={status === "anon" ? `/login?next=${encodeURIComponent(location.pathname)}` : "/admin"} replace />
     );

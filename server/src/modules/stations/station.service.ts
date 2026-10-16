@@ -171,6 +171,24 @@ export async function stationQrUrl(publicToken: string) {
   return `${env.PUBLIC_BASE_URL}/posta/${publicToken}`;
 }
 
+export type PublicTokenStatus = "OPEN" | "CLOSED" | "NOT_FOUND";
+
+/**
+ * Coarse, unauthenticated status for a scanned QR token. Lets the client show
+ * the "¡Ven a conocernos!" invitation (and a login prompt while the event is
+ * open) without exposing any station secrets.
+ */
+export async function publicTokenStatus(publicToken: string): Promise<PublicTokenStatus> {
+  const station = await prisma.station.findUnique({
+    where: { publicToken },
+    select: { event: { select: { status: true } } },
+  });
+  if (!station) return "NOT_FOUND";
+  const closed =
+    station.event.status === "FINISHED" || station.event.status === "CANCELLED";
+  return closed ? "CLOSED" : "OPEN";
+}
+
 // ---------------------------------------------------------------------------
 // CSV coordinate import
 // ---------------------------------------------------------------------------

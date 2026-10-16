@@ -1,6 +1,7 @@
 import { Router } from "express";
 import QRCode from "qrcode";
 import { asyncHandler } from "@/utils/asyncHandler";
+import { brandQrWithLogo } from "@/utils/qrBrand";
 import { requireAdmin } from "@/middleware/auth";
 import { csrfProtection } from "@/middleware/csrf";
 import { audit } from "@/utils/audit";
@@ -13,6 +14,16 @@ import {
 import * as stationService from "@/modules/stations/station.service";
 
 export const stationRoutes = Router();
+
+/**
+ * Public (no auth): coarse status of a scanned QR token. Registered before
+ * `requireAdmin()` so it stays open to anonymous visitors, and used by the
+ * client to invite people to the scout group once the event is over.
+ */
+stationRoutes.get("/public/:token", asyncHandler(async (req, res) => {
+  const status = await stationService.publicTokenStatus(req.params.token);
+  res.json({ status });
+}));
 
 stationRoutes.use(requireAdmin());
 
@@ -78,16 +89,26 @@ stationRoutes.delete("/:id", csrfProtection, asyncHandler(async (req, res) => {
   res.status(204).end();
 }));
 
-/** Downloads the QR for a station as a printable PNG. */
+/**
+ * Downloads the QR for a station as a printable PNG, with the Grupo Scout 62
+ * logo centered as a watermark. Uses the highest error correction level so the
+ * centered logo does not hinder scanning.
+ */
 stationRoutes.get("/:id/qr", asyncHandler(async (req, res) => {
   const station = await stationService.getStationById(req.params.id);
   const url = await stationService.stationQrUrl(station.publicToken);
-  const buffer = await QRCode.toBuffer(url, {
+  const plain = await QRCode.toBuffer(url, {
     type: "png",
-    width: 600,
+    width: 1024,
     margin: 2,
-    errorCorrectionLevel: "M",
+    errorCorrectionLevel: "H",
   });
+  let buffer = plain;
+  try {
+    buffer = brandQrWithLogo(plain);
+  } catch {
+    buffer = plain;
+  }
   res.setHeader("Content-Type", "image/png");
   res.setHeader(
     "Content-Disposition",

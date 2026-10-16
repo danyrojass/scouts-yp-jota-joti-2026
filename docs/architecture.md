@@ -107,8 +107,10 @@ PREPARED ──start──▶ IN_PROGRESS ──finish──▶ FINISHED
 ### Códigos QR
 - Cada posta tiene un `publicToken` aleatorio (`randomBytes(12).toString("base64url")`).
 - El QR codifica `"${PUBLIC_BASE_URL}/posta/{token}"`. El cliente extrae el token y llama a la API.
-- `GET /stations/:id/qr` devuelve un PNG (librería `qrcode`) para imprimir; `/:id/qr/data` devuelve la URL y el token.
+- `GET /stations/:id/qr` devuelve un PNG (librería `qrcode`, corrección de errores `H`) para imprimir, con el **logo del Grupo Scout 62** (marca de agua centrada sobre un recuadro redondeado) superpuesto con `pngjs`; `/:id/qr/data` devuelve la URL y el token. El logo se embebe como base64 (`server/src/assets/scout-logo.ts`) para no depender de leer archivos en serverless.
 - El escaneo en el navegador usa `@zxing/browser`.
+- Cuando el evento **finalizó o se canceló**, cualquier QR escaneado deja de mostrar la posta y muestra una pantalla de invitación (¡Ven a conocernos!) con el Instagram del grupo (`@gruposcout62`).
+- La ruta `/posta/:token` es **accesible sin sesión**: `GET /stations/public/:token` (sin auth) devuelve el estado público `OPEN` / `CLOSED` / `NOT_FOUND`. Con `OPEN` el cliente pide iniciar sesión (`/login?next=/posta/…`) para participar; con `CLOSED` muestra la invitación al grupo; con `NOT_FOUND` indica que el QR no corresponde a una posta. El endpoint expone solo un estado grueso y no revela datos de la posta.
 
 ### Safari de Exploración
 - Checklist colaborativo **por equipo**, persistido en el servidor (una fila `SafariFind` por `itemId`+`teamId`). Es **independiente** de las postas del pasaporte.

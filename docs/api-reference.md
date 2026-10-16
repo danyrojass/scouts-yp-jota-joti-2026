@@ -39,6 +39,8 @@ Base URL: `/api/v1`. En desarrollo, el cliente (5173) proxya `/api` hacia el ser
 
 Cuando es `NEXT`, `station` incluye `{ id, name, instructions, challengeType, autoAcceptAny, displayedCode }` — nunca `expectedAnswer`.
 
+Con `EVENT_FINISHED` o `EVENT_CANCELLED` (y también si `POST /visits` devuelve esos códigos), el cliente no muestra la posta: renderiza la pantalla de invitación **"¡Ven a conocernos!"** del Grupo Scout 62 Ypacaraí con su Instagram (`@gruposcout62`).
+
 Si el **itinerario del equipo** tiene una *pregunta bonus* en esa posta (`RouteStop.question`), el desafío de la posta se reemplaza: `challengeType` pasa a `QUESTION` (hay respuesta válida) o `AUTO` (vale cualquier respuesta) e `instructions` trae la pregunta. Permite que dos equipos tengan preguntas distintas en la misma posta física.
 
 ### Resultado de `POST /visits`
@@ -93,8 +95,9 @@ Solo puede existir **un** evento activo a la vez (409 si se intenta crear/activa
 | GET | `/stations/:id` | Detalle (sin `expectedAnswer`). |
 | PATCH | `/stations/:id` | Actualiza la posta (incluye `rescuePhrase?`). |
 | DELETE | `/stations/:id` | Elimina → 204. |
-| GET | `/stations/:id/qr` | PNG imprimible del QR. |
+| GET | `/stations/:id/qr` | PNG imprimible del QR (1024×1024, corrección de errores `H`) con el logo del Grupo Scout 62 superpuesto como marca de agua. |
 | GET | `/stations/:id/qr/data` | `{ url, token }` del QR. |
+| GET | `/stations/public/:token` | **Sin auth.** Estado público del token escaneado: `{ status: "OPEN" \| "CLOSED" \| "NOT_FOUND" }`. `CLOSED` cuando el evento finalizó o se canceló; el cliente usa esto para mostrar la invitación al grupo. |
 | POST | `/stations/import` | Importa coordenadas desde CSV. Body `{ eventId, csv }` → `{ updated, errors: [{ row, error }], parsed }`. No crea postas: empareja por nombre, `publicToken` o `displayedCode`. |
 
 `challengeType`: `CODE`, `QUESTION`, `CONFIRMATION`, `AUTO`. `latitude` y `longitude` son opcionales pero deben venir juntas (`-90..90` / `-180..180`). `rescuePhrase` es la frase secreta de recuperación (nunca se expone al equipo ni se imprime en la hoja pública de QR).
