@@ -18,21 +18,23 @@ export function EventDetailPage() {
 
   return (
     <div className="min-w-0">
-      <Link to="/admin/eventos" className="mb-2 inline-flex items-center gap-1 text-sm font-bold text-forest-600 hover:text-forest-800">
-        <ArrowLeft className="h-4 w-4" /> Volver a eventos
-      </Link>
-      {event && (
-        <>
-          <h1 className="mb-1 font-display text-2xl font-bold text-forest-900">{event.name}</h1>
-          <p className="mb-4 text-sm font-semibold text-forest-600">
-            📅 {new Date(event.date).toLocaleDateString("es")}
-            {event.location ? ` • 📍 ${event.location}` : ""}
-          </p>
-          <div className="lg:hidden">
-            <AdminEventTabs eventId={eventId} />
-          </div>
-        </>
-      )}
+      <div className="print:hidden">
+        <Link to="/admin/eventos" className="mb-2 inline-flex items-center gap-1 text-sm font-bold text-forest-600 hover:text-forest-800">
+          <ArrowLeft className="h-4 w-4" /> Volver a eventos
+        </Link>
+        {event && (
+          <>
+            <h1 className="mb-1 font-display text-2xl font-bold text-forest-900">{event.name}</h1>
+            <p className="mb-4 text-sm font-semibold text-forest-600">
+              📅 {new Date(event.date).toLocaleDateString("es")}
+              {event.location ? ` • 📍 ${event.location}` : ""}
+            </p>
+            <div className="lg:hidden">
+              <AdminEventTabs eventId={eventId} />
+            </div>
+          </>
+        )}
+      </div>
       <Outlet />
     </div>
   );

@@ -19,8 +19,8 @@ export function AdminShelter() {
   ];
 
   return (
-    <div className="min-h-dvh bg-forest-100">
-      <header className="sticky top-0 z-20 border-b border-beige-200 bg-white shadow-card">
+    <div className="min-h-dvh bg-forest-100 print:min-h-0 print:bg-white">
+      <header className="sticky top-0 z-20 border-b border-beige-200 bg-white shadow-card print:hidden">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate(-1)} className="rounded-xl p-2 text-forest-600 hover:bg-forest-50" title="Atrás" aria-label="Atrás">
@@ -44,8 +44,8 @@ export function AdminShelter() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6">
-        <aside className="hidden w-56 shrink-0 lg:block">
+      <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6 print:max-w-none print:gap-0 print:px-0 print:py-0">
+        <aside className="hidden w-56 shrink-0 lg:block print:hidden">
           <div className="sticky top-24 space-y-4">
             {sections.map(({ to, label, icon: Icon, end }) => (
               <NavLink
