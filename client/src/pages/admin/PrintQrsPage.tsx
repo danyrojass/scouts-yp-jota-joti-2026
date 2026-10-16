@@ -25,7 +25,7 @@ export function PrintQrsPage() {
         <div>
           <h2 className="font-display text-xl font-bold text-forest-900">QR para imprimir</h2>
           <p className="text-sm font-semibold text-forest-600">
-            Imprimí una hoja por posta y colocá el cartel en el punto indicado.
+            Se imprimen dos carteles por hoja. Recortá cada uno y colocalo en el punto indicado.
           </p>
         </div>
         <button onClick={print} className="btn-primary">
@@ -43,14 +43,14 @@ export function PrintQrsPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 print:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 print:grid-cols-1 print:gap-2">
         {stations?.map((s) => (
-          <div key={s.id} className="card flex flex-col items-center gap-3 text-center break-inside-avoid">
+          <div key={s.id} className="card flex flex-col items-center gap-3 text-center break-inside-avoid print:gap-2 print:p-4">
             <p className="font-display text-xl font-bold text-forest-900">{s.name}</p>
             <img
               src={`${QR_BASE}/${s.id}/qr`}
               alt={`Código QR de ${s.name}`}
-              className="h-56 w-56 rounded-2xl border border-beige-200 bg-white p-2"
+              className="w-full max-w-[28rem] rounded-2xl border border-beige-200 bg-white p-2 print:max-w-[24rem]"
             />
             <p className="font-mono text-xs text-forest-500">{s.challengeType}</p>
           </div>
@@ -58,6 +58,7 @@ export function PrintQrsPage() {
       </div>
 
       <style>{`
+        @page { margin: 10mm; }
         @media print {
           body { background: white !important; }
           .print\\:hidden { display: none !important; }
